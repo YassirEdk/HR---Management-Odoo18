@@ -1,0 +1,6 @@
+# External Python dependencies for custom-addons
+# (Odoo core deps and stdlib modules excluded)
+
+lxml==5.2.1
+python-dateutil==2.8.2
+pyzk==0.9
