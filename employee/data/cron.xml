@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+        <record id="ir_cron_increment_solde_conge" model="ir.cron">
+            <field name="name">Incrément Mensuel Solde Congé</field>
+            <field name="model_id" ref="hr.model_hr_employee"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_increment_solde_conge()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">months</field>
+            <field name="active" eval="True"/>
+            <field name="nextcall">2026-05-01 00:00:00</field>
+        </record>
+
+</odoo>
+
+
+

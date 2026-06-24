@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Define custom module category for Holiday groups -->
+        <record id="module_category_holiday_custom" model="ir.module.category">
+            <field name="name">Time Off</field>
+            <field name="description">Manage time off requests and approvals</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <!-- Holiday User Group (Basic employees) -->
+        <record id="group_holiday_user" model="res.groups">
+            <field name="name">Holiday User</field>
+            <field name="category_id" ref="module_category_holiday_custom"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        </record>
+
+        <!-- Holiday Admin (Managers) -->
+        <record id="group_holiday_admin" model="res.groups">
+            <field name="name">Holiday Manager</field>
+            <field name="category_id" ref="module_category_holiday_custom"/>
+            <field name="implied_ids" eval="[(4, ref('group_holiday_user'))]"/>
+        </record>
+
+        <!-- Holiday HR (RH) -->
+        <record id="group_holiday_hr" model="res.groups">
+            <field name="name">Holiday RH</field>
+            <field name="category_id" ref="module_category_holiday_custom"/>
+            <field name="implied_ids" eval="[(4, ref('group_holiday_user'))]"/>
+        </record>
+
+        <!-- Auto-assign Holiday User to every internal user -->
+        <record id="base.group_user" model="res.groups">
+            <field name="implied_ids" eval="[(4, ref('group_holiday_user'))]"/>
+        </record>
+
+    </data>
+</odoo>

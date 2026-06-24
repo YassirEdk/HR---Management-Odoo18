@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hr_leave_view_form_confirm_button" model="ir.ui.view">
+        <field name="name">hr.leave.form.confirm.button</field>
+        <field name="model">hr.leave</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add footer after the sheet -->
+            <xpath expr="//sheet" position="after">
+                <footer>
+                    <button string="Confirm"
+                            name="action_confirm_employee"
+                            type="object"
+                            class="btn-primary"
+                            invisible="x_employee_confirmed == True or state != 'confirm' or x_is_owner == False or (x_less_than_6_months == True and x_for_other_employee == False)"
+                            help="Confirm your time off request"/>
+                    <button string="Discard"
+                            class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </xpath>
+
+            <!-- Make sure x_employee_confirmed field is in the view (invisible) -->
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="x_employee_confirmed" invisible="1"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

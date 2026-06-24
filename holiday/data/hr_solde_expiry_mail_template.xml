@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="mail_template_solde_expiry_alert" model="mail.template">
+            <field name="name">Alerte Expiration Solde Congé</field>
+            <field name="model_id" ref="holiday.model_hr_solde_expiry_alert"/>
+            <field name="subject">⚠️ Alerte Solde Congé — ${object.employee_id.name}</field>
+            <field name="email_from">${object.env.company.email or ''}</field>
+            <field name="email_to">${'' }</field>
+            <field name="body_html" type="html">
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+                    <div style="background:#667eea;padding:20px 30px;border-radius:10px 10px 0 0;">
+                        <h2 style="color:#fff;margin:0;">⚠️ Alerte Expiration Solde Congé</h2>
+                    </div>
+                    <div style="background:#f8f9fa;padding:24px 30px;border:1px solid #e2e8f0;border-radius:0 0 10px 10px;">
+                        <p style="color:#374151;font-size:14px;">
+                            Bonjour,<br/><br/>
+                            L'employé <strong><t t-out="object.employee_id.name"/></strong> approche de
+                            son anniversaire d'embauche et possède encore un solde de congé non utilisé.
+                        </p>
+                        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                            <tr style="background:#fff;border:1px solid #e2e8f0;">
+                                <td style="padding:10px 16px;font-weight:600;color:#6b7280;width:40%;">Employé</td>
+                                <td style="padding:10px 16px;color:#111827;">
+                                    <t t-out="object.employee_id.name"/>
+                                </td>
+                            </tr>
+                            <tr style="background:#f9fafb;border:1px solid #e2e8f0;">
+                                <td style="padding:10px 16px;font-weight:600;color:#6b7280;">Date d'embauche</td>
+                                <td style="padding:10px 16px;color:#111827;">
+                                    <t t-out="object.hire_date.strftime('%d/%m/%Y') if object.hire_date else ''"/>
+                                </td>
+                            </tr>
+                            <tr style="background:#fff;border:1px solid #e2e8f0;">
+                                <td style="padding:10px 16px;font-weight:600;color:#6b7280;">Solde congé</td>
+                                <td style="padding:10px 16px;color:#dc2626;font-weight:700;">
+                                    <t t-out="object.solde_conge"/> jours
+                                </td>
+                            </tr>
+                            <tr style="background:#f9fafb;border:1px solid #e2e8f0;">
+                                <td style="padding:10px 16px;font-weight:600;color:#6b7280;">Date anniversaire</td>
+                                <td style="padding:10px 16px;color:#111827;">
+                                    <t t-out="object.expiry_date.strftime('%d/%m/%Y') if object.expiry_date else ''"/>
+                                </td>
+                            </tr>
+                            <tr style="background:#fff;border:1px solid #e2e8f0;">
+                                <td style="padding:10px 16px;font-weight:600;color:#6b7280;">Jours restants</td>
+                                <td style="padding:10px 16px;color:#d97706;font-weight:700;">
+                                    <t t-out="object.days_remaining"/> jours
+                                </td>
+                            </tr>
+                        </table>
+                        <p style="color:#6b7280;font-size:12px;margin-top:20px;">
+                            Ce message est généré automatiquement par le système de gestion des congés.
+                        </p>
+                    </div>
+                </div>
+            </field>
+        </record>
+    </data>
+</odoo>

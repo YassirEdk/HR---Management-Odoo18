@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <data>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--              JOURS FÉRIÉS FIXES — 2025                    -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <record id="jf_2025_01_01" model="hr.public.holiday">
+            <field name="date">2025-01-01</field>
+            <field name="name">Fête du Nouvel An</field>
+        </record>
+        <record id="jf_2025_01_11" model="hr.public.holiday">
+            <field name="date">2025-01-11</field>
+            <field name="name">Manifeste de l'Indépendance</field>
+        </record>
+        <record id="jf_2025_05_01" model="hr.public.holiday">
+            <field name="date">2025-05-01</field>
+            <field name="name">Fête du Travail</field>
+        </record>
+        <record id="jf_2025_07_30" model="hr.public.holiday">
+            <field name="date">2025-07-30</field>
+            <field name="name">Fête du Trône</field>
+        </record>
+        <record id="jf_2025_08_14" model="hr.public.holiday">
+            <field name="date">2025-08-14</field>
+            <field name="name">Allégeance Oued Eddahab</field>
+        </record>
+        <record id="jf_2025_08_20" model="hr.public.holiday">
+            <field name="date">2025-08-20</field>
+            <field name="name">Révolution du Roi et du Peuple</field>
+        </record>
+        <record id="jf_2025_08_21" model="hr.public.holiday">
+            <field name="date">2025-08-21</field>
+            <field name="name">Fête de la Jeunesse</field>
+        </record>
+        <record id="jf_2025_11_06" model="hr.public.holiday">
+            <field name="date">2025-11-06</field>
+            <field name="name">Marche Verte</field>
+        </record>
+        <record id="jf_2025_11_18" model="hr.public.holiday">
+            <field name="date">2025-11-18</field>
+            <field name="name">Fête de l'Indépendance</field>
+        </record>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--           JOURS FÉRIÉS ISLAMIQUES — 2025                  -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <record id="jf_2025_fitr_1" model="hr.public.holiday">
+            <field name="date">2025-03-30</field>
+            <field name="name">Aïd Al-Fitr 1446 (Jour 1)</field>
+            <field name="description">Fête de rupture du jeûne</field>
+        </record>
+        <record id="jf_2025_fitr_2" model="hr.public.holiday">
+            <field name="date">2025-03-31</field>
+            <field name="name">Aïd Al-Fitr 1446 (Jour 2)</field>
+            <field name="description">Fête de rupture du jeûne</field>
+        </record>
+        <record id="jf_2025_adha_1" model="hr.public.holiday">
+            <field name="date">2025-06-06</field>
+            <field name="name">Aïd Al-Adha 1446 (Jour 1)</field>
+            <field name="description">Fête du sacrifice</field>
+        </record>
+        <record id="jf_2025_adha_2" model="hr.public.holiday">
+            <field name="date">2025-06-07</field>
+            <field name="name">Aïd Al-Adha 1446 (Jour 2)</field>
+            <field name="description">Fête du sacrifice</field>
+        </record>
+        <record id="jf_2025_moharrem" model="hr.public.holiday">
+            <field name="date">2025-06-26</field>
+            <field name="name">1er Moharrem 1447</field>
+            <field name="description">Nouvel An Hégirien</field>
+        </record>
+        <record id="jf_2025_mawlid" model="hr.public.holiday">
+            <field name="date">2025-09-04</field>
+            <field name="name">Aïd Al-Mawlid Annabawi 1447</field>
+            <field name="description">Naissance du Prophète Mohammed</field>
+        </record>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--              JOURS FÉRIÉS FIXES — 2026                    -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <record id="jf_2026_01_01" model="hr.public.holiday">
+            <field name="date">2026-01-01</field>
+            <field name="name">Fête du Nouvel An</field>
+        </record>
+        <record id="jf_2026_01_11" model="hr.public.holiday">
+            <field name="date">2026-01-11</field>
+            <field name="name">Manifeste de l'Indépendance</field>
+        </record>
+        <record id="jf_2026_05_01" model="hr.public.holiday">
+            <field name="date">2026-05-01</field>
+            <field name="name">Fête du Travail</field>
+        </record>
+        <record id="jf_2026_07_30" model="hr.public.holiday">
+            <field name="date">2026-07-30</field>
+            <field name="name">Fête du Trône</field>
+        </record>
+        <record id="jf_2026_08_14" model="hr.public.holiday">
+            <field name="date">2026-08-14</field>
+            <field name="name">Allégeance Oued Eddahab</field>
+        </record>
+        <record id="jf_2026_08_20" model="hr.public.holiday">
+            <field name="date">2026-08-20</field>
+            <field name="name">Révolution du Roi et du Peuple</field>
+        </record>
+        <record id="jf_2026_08_21" model="hr.public.holiday">
+            <field name="date">2026-08-21</field>
+            <field name="name">Fête de la Jeunesse</field>
+        </record>
+        <record id="jf_2026_11_06" model="hr.public.holiday">
+            <field name="date">2026-11-06</field>
+            <field name="name">Marche Verte</field>
+        </record>
+        <record id="jf_2026_11_18" model="hr.public.holiday">
+            <field name="date">2026-11-18</field>
+            <field name="name">Fête de l'Indépendance</field>
+        </record>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--           JOURS FÉRIÉS ISLAMIQUES — 2026                  -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <record id="jf_2026_fitr_1" model="hr.public.holiday">
+            <field name="date">2026-03-20</field>
+            <field name="name">Aïd Al-Fitr 1447 (Jour 1)</field>
+            <field name="description">Fête de rupture du jeûne</field>
+        </record>
+        <record id="jf_2026_fitr_2" model="hr.public.holiday">
+            <field name="date">2026-03-21</field>
+            <field name="name">Aïd Al-Fitr 1447 (Jour 2)</field>
+            <field name="description">Fête de rupture du jeûne</field>
+        </record>
+        <record id="jf_2026_adha_1" model="hr.public.holiday">
+            <field name="date">2026-05-27</field>
+            <field name="name">Aïd Al-Adha 1447 (Jour 1)</field>
+            <field name="description">Fête du sacrifice</field>
+        </record>
+        <record id="jf_2026_adha_2" model="hr.public.holiday">
+            <field name="date">2026-05-28</field>
+            <field name="name">Aïd Al-Adha 1447 (Jour 2)</field>
+            <field name="description">Fête du sacrifice</field>
+        </record>
+        <record id="jf_2026_moharrem" model="hr.public.holiday">
+            <field name="date">2026-06-16</field>
+            <field name="name">1er Moharrem 1448</field>
+            <field name="description">Nouvel An Hégirien</field>
+        </record>
+        <record id="jf_2026_mawlid" model="hr.public.holiday">
+            <field name="date">2026-08-25</field>
+            <field name="name">Aïd Al-Mawlid Annabawi 1448</field>
+            <field name="description">Naissance du Prophète Mohammed</field>
+        </record>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--              JOURS FÉRIÉS FIXES — 2027                    -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <record id="jf_2027_01_01" model="hr.public.holiday">
+            <field name="date">2027-01-01</field>
+            <field name="name">Fête du Nouvel An</field>
+        </record>
+        <record id="jf_2027_01_11" model="hr.public.holiday">
+            <field name="date">2027-01-11</field>
+            <field name="name">Manifeste de l'Indépendance</field>
+        </record>
+        <record id="jf_2027_05_01" model="hr.public.holiday">
+            <field name="date">2027-05-01</field>
+            <field name="name">Fête du Travail</field>
+        </record>
+        <record id="jf_2027_07_30" model="hr.public.holiday">
+            <field name="date">2027-07-30</field>
+            <field name="name">Fête du Trône</field>
+        </record>
+        <record id="jf_2027_08_14" model="hr.public.holiday">
+            <field name="date">2027-08-14</field>
+            <field name="name">Allégeance Oued Eddahab</field>
+        </record>
+        <record id="jf_2027_08_20" model="hr.public.holiday">
+            <field name="date">2027-08-20</field>
+            <field name="name">Révolution du Roi et du Peuple</field>
+        </record>
+        <record id="jf_2027_08_21" model="hr.public.holiday">
+            <field name="date">2027-08-21</field>
+            <field name="name">Fête de la Jeunesse</field>
+        </record>
+        <record id="jf_2027_11_06" model="hr.public.holiday">
+            <field name="date">2027-11-06</field>
+            <field name="name">Marche Verte</field>
+        </record>
+        <record id="jf_2027_11_18" model="hr.public.holiday">
+            <field name="date">2027-11-18</field>
+            <field name="name">Fête de l'Indépendance</field>
+        </record>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!--           JOURS FÉRIÉS ISLAMIQUES — 2027                  -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <record id="jf_2027_fitr_1" model="hr.public.holiday">
+            <field name="date">2027-03-09</field>
+            <field name="name">Aïd Al-Fitr 1448 (Jour 1)</field>
+            <field name="description">Fête de rupture du jeûne</field>
+        </record>
+        <record id="jf_2027_fitr_2" model="hr.public.holiday">
+            <field name="date">2027-03-10</field>
+            <field name="name">Aïd Al-Fitr 1448 (Jour 2)</field>
+            <field name="description">Fête de rupture du jeûne</field>
+        </record>
+        <record id="jf_2027_adha_1" model="hr.public.holiday">
+            <field name="date">2027-05-16</field>
+            <field name="name">Aïd Al-Adha 1448 (Jour 1)</field>
+            <field name="description">Fête du sacrifice</field>
+        </record>
+        <record id="jf_2027_adha_2" model="hr.public.holiday">
+            <field name="date">2027-05-17</field>
+            <field name="name">Aïd Al-Adha 1448 (Jour 2)</field>
+            <field name="description">Fête du sacrifice</field>
+        </record>
+        <record id="jf_2027_moharrem" model="hr.public.holiday">
+            <field name="date">2027-06-06</field>
+            <field name="name">1er Moharrem 1449</field>
+            <field name="description">Nouvel An Hégirien</field>
+        </record>
+
+    </data>
+</odoo>

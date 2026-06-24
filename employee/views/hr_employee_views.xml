@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_employee_form_badge" model="ir.ui.view">
+        <field name="name">hr.employee.form.badge</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='work_email']" position="after">
+                <field name="badge_id"/>
+            </xpath>
+
+            <xpath expr="//field[@name='coach_id']" position="after">
+                <field name="solde_conge" invisible="1" groups="base.group_user"/>
+                <field name="solde_conge" invisible="1" groups="hr.group_hr_user,base.group_system"/>
+            </xpath>
+
+            <xpath expr="//field[@name='department_id']" position="after">
+                <field name="department_type" invisible="1"/>
+                <field name="shift_type" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//field[@name='department_type']" position="after">
+                <field name="gender" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//field[@name='gender']" position="after">
+                <field name="date_embauche" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//field[@name='date_embauche']" position="after">
+                <field name="type_employee" invisible="1"/>
+                <field name="periode_essai" invisible="1" readonly="1"/>
+            </xpath>
+
+            <xpath expr="//field[@name='shift_type']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//notebook" position="inside">
+                <page string="HR" name="hr_info" groups="employee.group_employee_hr,employee.group_employee_manager,base.group_system">
+                    <group string="Informations RH">
+
+                        <group>
+                            <field name="date_embauche"/>
+                            <field name="type_employee"/>
+                            <field name="department_type" widget="radio" options="{'horizontal': true}"/>
+                            <field name="shift_type" invisible="department_type != 'warehouse'" required="department_type == 'warehouse'"/>
+                            <field name="periode_essai" readonly="1" widget="badge" decoration-success="periode_essai == 'termine'" decoration-warning="periode_essai == 'deuxieme'" decoration-info="periode_essai == 'premiere'"/>
+                        </group>
+
+                        <group>
+                            <field name="solde_conge" groups="base.group_system"/>
+                            <field name="solde_conge" readonly="1" groups="employee.group_employee_hr,employee.group_employee_manager"/>
+                        </group>
+
+                    </group>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

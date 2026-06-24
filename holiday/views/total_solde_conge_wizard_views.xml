@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_total_solde_conge_wizard_form" model="ir.ui.view">
+        <field name="name">total.solde.conge.wizard.form</field>
+        <field name="model">total.solde.conge.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Total Solde Congé" disable_autosave="1" edit="0">
+
+                <style>
+                    .slc-wrap {
+                        padding: 32px 40px;
+                        background: #f8f9fa;
+                        min-height: 100vh;
+                    }
+                    .slc-header {
+                        margin-bottom: 28px;
+                    }
+                    .slc-header h2 {
+                        font-size: 22px;
+                        font-weight: 600;
+                        color: #1a202c;
+                        margin: 0 0 4px 0;
+                    }
+                    .slc-header p {
+                        font-size: 13px;
+                        color: #718096;
+                        margin: 0;
+                    }
+                    .slc-summary {
+                        display: flex;
+                        gap: 16px;
+                        margin-bottom: 28px;
+                    }
+                    .slc-card {
+                        background: #fff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        padding: 18px 24px;
+                        min-width: 180px;
+                    }
+                    .slc-card-label {
+                        font-size: 11px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                        color: #a0aec0;
+                        margin-bottom: 6px;
+                    }
+                    .slc-card-value {
+                        font-size: 28px;
+                        font-weight: 700;
+                        color: #2d3748;
+                    }
+                    .slc-card-value .slc-unit {
+                        font-size: 14px;
+                        font-weight: 400;
+                        color: #a0aec0;
+                        margin-left: 4px;
+                    }
+                    .slc-table-wrap {
+                        background: #fff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        overflow: hidden;
+                    }
+                    .o_form_view .o_form_sheet_bg { background: #f8f9fa !important; }
+                    .o_form_view .o_form_sheet { padding: 0 !important; max-width: 100% !important; box-shadow: none !important; border-radius: 0 !important; }
+                    /* Hide save/discard buttons */
+                    .o_form_buttons_edit { display: none !important; }
+                    .o_cp_buttons .o_form_button_edit { display: none !important; }
+                </style>
+
+                <sheet>
+                    <field name="total_solde_conge" invisible="1"/>
+                    <field name="employee_count"    invisible="1"/>
+
+                    <div class="slc-wrap">
+
+                        <div class="slc-header">
+                            <h2>Solde Congés — Employés</h2>
+                            <p>Classé par solde décroissant</p>
+                        </div>
+
+                        <div class="slc-summary">
+                            <div class="slc-card">
+                                <div class="slc-card-label">Employés</div>
+                                <div class="slc-card-value">
+                                    <field name="employee_count" readonly="1" nolabel="1"
+                                           style="font-size:inherit;font-weight:inherit;color:inherit;background:none;border:none;padding:0;width:auto;display:inline;"/>
+                                </div>
+                            </div>
+                            <div class="slc-card">
+                                <div class="slc-card-label">Total Solde</div>
+                                <div class="slc-card-value">
+                                    <field name="total_solde_conge" readonly="1" nolabel="1"
+                                           digits="[6,1]"
+                                           style="font-size:inherit;font-weight:inherit;color:inherit;background:none;border:none;padding:0;width:auto;display:inline;"/>
+                                    <span class="slc-unit">j</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="slc-table-wrap">
+                            <field name="employee_ids" readonly="1" nolabel="1" mode="list">
+                                <list string="Employés" create="0" delete="0"
+                                      default_order="solde_conge desc">
+                                    <field name="name"           string="Employé"/>
+                                    <field name="department_id"  string="Département"/>
+                                    <field name="job_title"      string="Poste"/>
+                                    <field name="date_embauche"  string="Date d'embauche"/>
+                                    <field name="solde_conge"    string="Solde (jours)"
+                                           widget="float" digits="[6,2]"
+                                           decoration-danger="solde_conge &lt; 3"
+                                           decoration-warning="solde_conge &gt;= 3 and solde_conge &lt; 10"
+                                           decoration-success="solde_conge &gt;= 10"/>
+                                </list>
+                            </field>
+                        </div>
+
+                    </div>
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- Direct act_window — no server action on res.users -->
+    <record id="action_total_solde_conge_wizard" model="ir.actions.act_window">
+        <field name="name">Total Solde Congé</field>
+        <field name="res_model">total.solde.conge.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_total_solde_conge_wizard_form"/>
+        <field name="target">main</field>
+        <field name="context">{
+            'no_create': True,
+            'create': False,
+            'edit': False,
+        }</field>
+    </record>
+
+    <menuitem
+        id="menu_total_solde_conge"
+        name="Total Solde Congé"
+        parent="hr_holidays.menu_hr_holidays_root"
+        action="action_total_solde_conge_wizard"
+        groups="holiday.group_holiday_hr"
+        sequence="4"
+    />
+
+</odoo>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="hr_attendance_view_form_inherit_break" model="ir.ui.view">
+        <field name="name">hr.attendance.form.break</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add Break fields after check_out -->
+            <xpath expr="//field[@name='check_out']" position="after">
+                <field name="break_start"
+                       string="Break Start"
+                       widget="datetime"
+                       readonly="1"/>
+                <field name="break_end"
+                       string="Break End"
+                       widget="datetime"
+                       readonly="1"/>
+                <field name="break_duration"
+                       string="Break Duration (h)"
+                       widget="float_time"
+                       readonly="1"/>
+            </xpath>
+
+            <!-- Hide native worked_hours, replace with net_worked_hours -->
+            <xpath expr="//field[@name='worked_hours']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='worked_hours']" position="after">
+                <field name="net_worked_hours"
+                       string="Net Worked Hours"
+                       widget="float_time"
+                       readonly="1"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

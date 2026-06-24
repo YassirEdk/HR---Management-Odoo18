@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="hr_leave_holiday_warning_wizard_form" model="ir.ui.view">
+            <field name="name">hr.leave.holiday.warning.wizard.form</field>
+            <field name="model">hr.leave.holiday.warning.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Jours Fériés Détectés">
+                    <sheet>
+                        <div style="padding: 8px 0;">
+                            <div style="display:flex;align-items:flex-start;gap:10px;
+                                        background:#fffbeb;border:1px solid #fcd34d;
+                                        border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+                                <span style="font-size:22px;flex-shrink:0;">⚠️</span>
+                                <div>
+                                    <div style="font-weight:700;font-size:14px;color:#92400e;margin-bottom:6px;">
+                                        Attention — Jours Fériés au Maroc
+                                    </div>
+                                    <field name="warning_message" nolabel="1" readonly="1"
+                                           widget="text"
+                                           style="background:transparent;border:none;
+                                                  color:#78350f;font-size:13px;
+                                                  white-space:pre-line;padding:0;
+                                                  width:100%;resize:none;"/>
+                                    <div style="margin-top:10px;font-size:12px;color:#92400e;">
+                                        Ces jours sont déjà des congés officiels.
+                                        Voulez-vous confirmer quand même ?
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </sheet>
+                    <footer>
+                        <button name="action_confirm_anyway"
+                                string="Confirmer quand même"
+                                type="object"
+                                class="btn-primary"/>
+                        <button name="action_cancel"
+                                string="Annuler"
+                                type="object"
+                                class="btn-secondary"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+    </data>
+</odoo>

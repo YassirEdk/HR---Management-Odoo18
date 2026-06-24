@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Template: 1ère PE warning -->
+    <record id="mail_template_pe_premiere_warning" model="mail.template">
+        <field name="name">Avertissement 1ère Période d'Essai</field>
+        <field name="model_id" ref="hr.model_hr_employee"/>
+        <field name="subject">⚠️ Période d'essai — {{ object.name }} expire bientôt</field>
+        <field name="email_from">{{ user.email_formatted }}</field>
+        <field name="email_to">{{ object.parent_id.work_email or '' }}</field>
+        <field name="body_html"><![CDATA[
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+
+    <div style="background-color: #875A7B; padding: 24px 32px;">
+        <h2 style="color: #ffffff; margin: 0; font-size: 20px;">
+            &#9888; Avertissement — Période d'Essai
+        </h2>
+    </div>
+
+    <div style="padding: 32px; background-color: #ffffff;">
+        <p style="font-size: 15px; color: #333;">Bonjour,</p>
+        <p style="font-size: 15px; color: #333;">
+            Ceci est un rappel automatique concernant la période d'essai de l'employé(e) suivant(e) :
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #e0e0e0;">
+            <tr style="background-color: #f5f5f5;">
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; width: 40%;">Employé(e)</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.name }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; background-color: #fafafa;">Type d'employé</td>
+                <td style="padding: 10px 16px; color: #333;">
+                    % if object.type_employee == 'ouvrier':
+                        Ouvrier
+                    % elif object.type_employee == 'employee':
+                        Employé
+                    % elif object.type_employee == 'cadre':
+                        Cadre
+                    % else:
+                        N/A
+                    % endif
+                </td>
+            </tr>
+            <tr style="background-color: #f5f5f5;">
+                <td style="padding: 10px 16px; font-weight: bold; color: #555;">Date d'embauche</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.date_embauche }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; background-color: #fafafa;">Période d'essai</td>
+                <td style="padding: 10px 16px;">
+                    <span style="background-color: #d1ecf1; color: #0c5460; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold;">
+                        1ère Période d'Essai
+                    </span>
+                </td>
+            </tr>
+            <tr style="background-color: #f5f5f5;">
+                <td style="padding: 10px 16px; font-weight: bold; color: #555;">Responsable</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.parent_id.name if object.parent_id else 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; background-color: #fafafa;">Département</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.department_id.name if object.department_id else 'N/A' }}</td>
+            </tr>
+        </table>
+
+        <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 14px 18px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404; font-size: 14px;">
+                <strong>Action requise :</strong>
+                La <strong>1ère période d'essai</strong> de cet(te) employé(e) arrive à expiration.
+                Veuillez prendre les mesures nécessaires (confirmation, renouvellement ou fin de contrat).
+            </p>
+        </div>
+
+        <div style="text-align: center; margin: 28px 0;">
+            <a href="/odoo/employees/{{ object.id }}"
+               style="background-color: #875A7B; color: #ffffff; padding: 12px 28px;
+                      border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: bold;">
+                Voir la fiche employé
+            </a>
+        </div>
+
+        <p style="font-size: 13px; color: #999; margin-top: 32px;">
+            Ce message a été généré automatiquement par le système RH. Merci de ne pas y répondre directement.
+        </p>
+    </div>
+
+    <div style="background-color: #f0f0f0; padding: 14px 32px; text-align: center;">
+        <p style="margin: 0; font-size: 12px; color: #888;">
+            {{ object.company_id.name if object.company_id else '' }} — Système de Gestion RH
+        </p>
+    </div>
+
+</div>
+        ]]></field>
+    </record>
+
+    <!-- Template: 2ème PE warning -->
+    <record id="mail_template_pe_deuxieme_warning" model="mail.template">
+        <field name="name">Avertissement 2ème Période d'Essai</field>
+        <field name="model_id" ref="hr.model_hr_employee"/>
+        <field name="subject">⚠️ 2ème Période d'essai — {{ object.name }} expire bientôt</field>
+        <field name="email_from">{{ user.email_formatted }}</field>
+        <field name="email_to">{{ object.parent_id.work_email or '' }}</field>
+        <field name="body_html"><![CDATA[
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+
+    <div style="background-color: #e07b39; padding: 24px 32px;">
+        <h2 style="color: #ffffff; margin: 0; font-size: 20px;">
+            &#9888; Avertissement — 2ème Période d'Essai
+        </h2>
+    </div>
+
+    <div style="padding: 32px; background-color: #ffffff;">
+        <p style="font-size: 15px; color: #333;">Bonjour,</p>
+        <p style="font-size: 15px; color: #333;">
+            Ceci est un rappel automatique concernant la <strong>2ème période d'essai</strong> de l'employé(e) suivant(e) :
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #e0e0e0;">
+            <tr style="background-color: #f5f5f5;">
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; width: 40%;">Employé(e)</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.name }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; background-color: #fafafa;">Type d'employé</td>
+                <td style="padding: 10px 16px; color: #333;">
+                    % if object.type_employee == 'ouvrier':
+                        Ouvrier
+                    % elif object.type_employee == 'employee':
+                        Employé
+                    % elif object.type_employee == 'cadre':
+                        Cadre
+                    % else:
+                        N/A
+                    % endif
+                </td>
+            </tr>
+            <tr style="background-color: #f5f5f5;">
+                <td style="padding: 10px 16px; font-weight: bold; color: #555;">Date d'embauche</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.date_embauche }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; background-color: #fafafa;">Période d'essai</td>
+                <td style="padding: 10px 16px;">
+                    <span style="background-color: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold;">
+                        2ème Période d'Essai
+                    </span>
+                </td>
+            </tr>
+            <tr style="background-color: #f5f5f5;">
+                <td style="padding: 10px 16px; font-weight: bold; color: #555;">Responsable</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.parent_id.name if object.parent_id else 'N/A' }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 16px; font-weight: bold; color: #555; background-color: #fafafa;">Département</td>
+                <td style="padding: 10px 16px; color: #333;">{{ object.department_id.name if object.department_id else 'N/A' }}</td>
+            </tr>
+        </table>
+
+        <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 14px 18px; margin: 20px 0;">
+            <p style="margin: 0; color: #721c24; font-size: 14px;">
+                <strong>Action urgente requise :</strong>
+                La <strong>2ème et dernière période d'essai</strong> de cet(te) employé(e) arrive à expiration.
+                C'est la dernière opportunité pour statuer sur la situation contractuelle.
+            </p>
+        </div>
+
+        <div style="text-align: center; margin: 28px 0;">
+            <a href="/odoo/employees/{{ object.id }}"
+               style="background-color: #e07b39; color: #ffffff; padding: 12px 28px;
+                      border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: bold;">
+                Voir la fiche employé
+            </a>
+        </div>
+
+        <p style="font-size: 13px; color: #999; margin-top: 32px;">
+            Ce message a été généré automatiquement par le système RH. Merci de ne pas y répondre directement.
+        </p>
+    </div>
+
+    <div style="background-color: #f0f0f0; padding: 14px 32px; text-align: center;">
+        <p style="margin: 0; font-size: 12px; color #888;">
+            {{ object.company_id.name if object.company_id else '' }} — Système de Gestion RH
+        </p>
+    </div>
+
+</div>
+        ]]></field>
+    </record>
+
+</odoo>

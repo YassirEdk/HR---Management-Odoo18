@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Seed the existing 4 department types. noupdate so user edits persist. -->
+    <data noupdate="1">
+        <record id="dept_type_siege" model="hr.department.type">
+            <field name="name">Siège</field>
+            <field name="code">siege</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="dept_type_agence" model="hr.department.type">
+            <field name="name">Agence</field>
+            <field name="code">agence</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="dept_type_warehouse" model="hr.department.type">
+            <field name="name">Warehouse</field>
+            <field name="code">warehouse</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="dept_type_aeroport" model="hr.department.type">
+            <field name="name">Aéroport</field>
+            <field name="code">aeroport</field>
+            <field name="sequence">40</field>
+        </record>
+    </data>
+</odoo>

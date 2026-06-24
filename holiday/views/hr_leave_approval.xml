@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <!-- Inherit the default tree view -->
+        <record id="hr_leave_view_tree_inherit_category" model="ir.ui.view">
+            <field name="name">hr.leave.tree.inherit.category</field>
+            <field name="model">hr.leave</field>
+            <field name="inherit_id" ref="hr_holidays.hr_leave_view_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='holiday_status_id']" position="replace">
+                    <field name="x_type_display" string="Type"/>
+                </xpath>
+                <xpath expr="//field[@name='duration_display']" position="replace">
+                    <field name="x_duration_display_plus2" string="Duration"/>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- ================================================================
+             EMPLOYEE FORM: hide native approve/refuse, add custom buttons
+             Only target buttons confirmed to exist in hr_leave_view_form
+             ================================================================ -->
+        <record id="hr_leave_view_form_approval_buttons" model="ir.ui.view">
+            <field name="name">hr.leave.form.approval.buttons</field>
+            <field name="model">hr.leave</field>
+            <field name="inherit_id" ref="hr_holidays.hr_leave_view_form"/>
+            <field name="priority">100</field>
+            <field name="arch" type="xml">
+
+                <!-- Hide native approve button (exists in employee form) -->
+                <xpath expr="//button[@name='action_approve']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+
+                <!-- Hide native refuse button (exists in employee form) -->
+                <xpath expr="//button[@name='action_refuse']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+
+                <!-- Add our custom buttons -->
+                <xpath expr="//header" position="inside">
+                    
+                    <!-- MANAGER: Approve -->
+                    <button name="action_approve"
+                            string="Approuver"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'unconfirmed'"
+                            groups="holiday.group_holiday_admin"/>
+                    
+                    <!-- MANAGER: Refuse -->
+                    <button name="action_refuse"
+                            string="Refuser (Manager)"
+                            type="object"
+                            invisible="state not in ('unconfirmed', 'validate1')"
+                            groups="holiday.group_holiday_admin"/>
+                    
+                    <!-- RH: Validate — calls action_validate1 which moves to 'validate' -->
+                    <button name="action_validate1"
+                            string="Valider (RH)"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'validate1'"
+                            groups="holiday.group_holiday_hr"/>
+                    
+                    <!-- RH: Refuse -->
+                    <button name="action_refuse"
+                            string="Refuser (RH)"
+                            type="object"
+                            invisible="state not in ('validate1', 'validate')"
+                            groups="holiday.group_holiday_hr"/>
+                    
+                </xpath>
+            </field>
+        </record>
+
+        <!-- ================================================================
+             MANAGER FORM: hide ALL native buttons
+             We target only what exists in hr_leave_view_form_manager
+             action_validate1 may not exist — handle gracefully via Python
+             ================================================================ -->
+        <record id="hr_leave_view_form_manager_hide_native" model="ir.ui.view">
+            <field name="name">hr.leave.form.manager.hide.native</field>
+            <field name="model">hr.leave</field>
+            <field name="inherit_id" ref="hr_holidays.hr_leave_view_form_manager"/>
+            <field name="priority">100</field>
+            <field name="arch" type="xml">
+
+                <!-- Hide approve (exists in manager view) -->
+                <xpath expr="//button[@name='action_approve']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+
+                <!-- Hide validate (exists in manager view) -->
+                <xpath expr="//button[@name='action_validate']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+
+                <!-- Hide refuse (exists in manager view) -->
+                <xpath expr="//button[@name='action_refuse']" position="attributes">
+                    <attribute name="invisible">1</attribute>
+                </xpath>
+
+                <!-- NOTE: action_validate1 is NOT targeted here because
+                     it does NOT exist in hr_leave_view_form_manager in Odoo 18.
+                     It is handled via action_validate1() in Python model. -->
+
+            </field>
+        </record>
+
+        <!-- Custom list view for MANAGER approval (org-chart filtered — used by Managers) -->
+        <record id="hr_leave_view_tree_approval_custom" model="ir.ui.view">
+            <field name="name">hr.leave.tree.approval.custom</field>
+            <field name="model">hr.leave</field>
+            <field name="arch" type="xml">
+                <list string="Manager Approval" multi_edit="1" create="false">
+                    <field name="employee_id"/>
+                    <field name="x_type_display" string="Type"/>
+                    <field name="request_date_from"/>
+                    <field name="request_date_to"/>
+                    <field name="duration_days_display" string="Duration"/>
+                    <field name="state" widget="badge"
+                           decoration-info="state == 'unconfirmed'"
+                           decoration-success="state == 'validate'"
+                           decoration-warning="state == 'validate1'"/>
+                    <button name="action_approve" title="Approuver" type="object"
+                            icon="fa-check text-success" invisible="state != 'unconfirmed'"/>
+                    <button name="action_refuse" title="Refuser" type="object"
+                            icon="fa-times text-danger" invisible="state != 'unconfirmed'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Custom list view for MANAGER approval (all users — used by RH) -->
+        <record id="hr_leave_view_tree_approval_rh_custom" model="ir.ui.view">
+            <field name="name">hr.leave.tree.approval.rh.custom</field>
+            <field name="model">hr.leave</field>
+            <field name="arch" type="xml">
+                <list string="Manager Approval (RH)" multi_edit="1" create="false">
+                    <field name="employee_id"/>
+                    <field name="x_type_display" string="Type"/>
+                    <field name="request_date_from"/>
+                    <field name="request_date_to"/>
+                    <field name="duration_days_display" string="Duration"/>
+                    <field name="state" widget="badge"
+                           decoration-info="state == 'unconfirmed'"
+                           decoration-success="state == 'validate'"
+                           decoration-warning="state == 'validate1'"/>
+                    <button name="action_approve" title="Approuver" type="object"
+                            icon="fa-check text-success" invisible="state != 'unconfirmed'"/>
+                    <button name="action_refuse" title="Refuser" type="object"
+                            icon="fa-times text-danger" invisible="state != 'unconfirmed'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Custom list view for RH validation -->
+        <record id="hr_leave_view_tree_rh_validation_custom" model="ir.ui.view">
+            <field name="name">hr.leave.tree.rh.validation.custom</field>
+            <field name="model">hr.leave</field>
+            <field name="arch" type="xml">
+                <list string="RH Validation" create="false">
+                    <field name="employee_id"/>
+                    <field name="x_type_display" string="Type"/>
+                    <field name="request_date_from"/>
+                    <field name="request_date_to"/>
+                    <field name="duration_days_display" string="Duration"/>
+                    <field name="state" widget="badge"
+                           decoration-warning="state == 'validate1'"
+                           decoration-success="state == 'validate'"/>
+                    <button name="action_validate1" title="Valider" type="object"
+                            icon="fa-check-circle text-success" invisible="state != 'validate1'"/>
+                    <button name="action_refuse" title="Refuser" type="object"
+                            icon="fa-times text-danger" invisible="state != 'validate1'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Custom list view for Validated Time Off -->
+        <record id="hr_leave_view_tree_validated_custom" model="ir.ui.view">
+            <field name="name">hr.leave.tree.validated.custom</field>
+            <field name="model">hr.leave</field>
+            <field name="arch" type="xml">
+                <list string="Validated Time Off" create="false" edit="false">
+                    <field name="employee_id"/>
+                    <field name="x_type_display" string="Type"/>
+                    <field name="request_date_from"/>
+                    <field name="request_date_to"/>
+                    <field name="duration_days_display" string="Duration"/>
+                    <field name="state" widget="badge" decoration-success="state == 'validate'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Custom list view for Refused Time Off -->
+        <record id="hr_leave_view_tree_refused_custom" model="ir.ui.view">
+            <field name="name">hr.leave.tree.refused.custom</field>
+            <field name="model">hr.leave</field>
+            <field name="arch" type="xml">
+                <list string="Refused Time Off" create="false" edit="false">
+                    <field name="employee_id"/>
+                    <field name="x_type_display" string="Type"/>
+                    <field name="request_date_from"/>
+                    <field name="request_date_to"/>
+                    <field name="duration_days_display" string="Duration"/>
+                    <field name="state" widget="badge" decoration-danger="state == 'refuse'"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- ================================================================
+             Actions
+             ================================================================ -->
+
+        <!--
+            Manager Approval action — FOR MANAGERS ONLY.
+            The `filter_by_org_chart` context flag restricts results to
+            subordinates of the current user in the org chart hierarchy.
+        -->
+        <record id="action_hr_leave_manager_approval_v2" model="ir.actions.act_window">
+            <field name="name">Manager Approval</field>
+            <field name="res_model">hr.leave</field>
+            <field name="view_mode">list,form,calendar</field>
+            <field name="view_id" ref="hr_leave_view_tree_approval_custom"/>
+            <field name="search_view_id" ref="hr_holidays.hr_leave_view_search_manager"/>
+            <field name="domain">[('state', '=', 'unconfirmed')]</field>
+            <field name="context">{'filter_by_org_chart': True}</field>
+        </record>
+
+        <!--
+            Manager Approval action — FOR RH ONLY.
+            No org-chart filter: RH sees ALL employees' pending requests.
+        -->
+        <record id="action_hr_leave_manager_approval_rh_v2" model="ir.actions.act_window">
+            <field name="name">Manager Approval</field>
+            <field name="res_model">hr.leave</field>
+            <field name="view_mode">list,form,calendar</field>
+            <field name="view_id" ref="hr_leave_view_tree_approval_rh_custom"/>
+            <field name="search_view_id" ref="hr_holidays.hr_leave_view_search_manager"/>
+            <field name="domain">[('state', '=', 'unconfirmed')]</field>
+        </record>
+
+        <record id="action_hr_leave_rh_validation_v2" model="ir.actions.act_window">
+            <field name="name">RH Validation</field>
+            <field name="res_model">hr.leave</field>
+            <field name="view_mode">list,form,calendar</field>
+            <field name="view_id" ref="hr_leave_view_tree_rh_validation_custom"/>
+            <field name="search_view_id" ref="hr_holidays.hr_leave_view_search_manager"/>
+            <field name="domain">[('state', '=', 'validate1')]</field>
+        </record>
+
+        <record id="action_hr_leave_validated_v2" model="ir.actions.act_window">
+            <field name="name">Validated Time Off</field>
+            <field name="res_model">hr.leave</field>
+            <field name="view_mode">list,form,calendar</field>
+            <field name="view_id" ref="hr_leave_view_tree_validated_custom"/>
+            <field name="search_view_id" ref="hr_holidays.hr_leave_view_search_manager"/>
+            <field name="domain">[('state', '=', 'validate')]</field>
+        </record>
+
+        <record id="action_hr_leave_refused_v2" model="ir.actions.act_window">
+            <field name="name">Refused Time Off</field>
+            <field name="res_model">hr.leave</field>
+            <field name="view_mode">list,form,calendar</field>
+            <field name="view_id" ref="hr_leave_view_tree_refused_custom"/>
+            <field name="search_view_id" ref="hr_holidays.hr_leave_view_search_manager"/>
+            <field name="domain">[('state', '=', 'refuse')]</field>
+        </record>
+
+        <!-- ================================================================
+             Menus
+             ================================================================ -->
+
+        <!-- Root menu: visible to both Managers and RH -->
+        <menuitem id="menu_timeoff_approval_root_v2" name="Time Off Approval"
+            parent="hr_holidays.menu_hr_holidays_root"
+            groups="holiday.group_holiday_admin,holiday.group_holiday_hr" sequence="3"/>
+
+        <!-- Manager Approval — FOR MANAGERS: org-chart filtered -->
+        <menuitem id="menu_hr_leave_manager_approval_v2" name="Manager Approval"
+            parent="menu_timeoff_approval_root_v2"
+            action="action_hr_leave_manager_approval_v2"
+            groups="holiday.group_holiday_admin" sequence="10"/>
+
+        <!-- Manager Approval — FOR RH: all employees, no filter -->
+        <menuitem id="menu_hr_leave_manager_approval_rh_v2" name="All Manager Approval"
+            parent="menu_timeoff_approval_root_v2"
+            action="action_hr_leave_manager_approval_rh_v2"
+            groups="holiday.group_holiday_hr" sequence="11"/>
+
+        <!-- RH Validation — RH only -->
+        <menuitem id="menu_hr_leave_rh_validation_v2" name="RH Validation"
+            parent="menu_timeoff_approval_root_v2"
+            action="action_hr_leave_rh_validation_v2"
+            groups="holiday.group_holiday_hr" sequence="20"/>
+
+        <!-- Validated Time Off — both -->
+        <menuitem id="menu_hr_leave_validated_v2" name="Validated Time Off"
+            parent="menu_timeoff_approval_root_v2"
+            action="action_hr_leave_validated_v2"
+            groups="holiday.group_holiday_hr,holiday.group_holiday_admin" sequence="30"/>
+
+        <!-- Refused Time Off — both -->
+        <menuitem id="menu_hr_leave_refused_v2" name="Refused Time Off"
+            parent="menu_timeoff_approval_root_v2"
+            action="action_hr_leave_refused_v2"
+            groups="holiday.group_holiday_hr,holiday.group_holiday_admin" sequence="40"/>
+
+    </data>
+</odoo>

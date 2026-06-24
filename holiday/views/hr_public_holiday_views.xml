@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ── List view ── -->
+        <record id="hr_public_holiday_view_list" model="ir.ui.view">
+            <field name="name">hr.public.holiday.list</field>
+            <field name="model">hr.public.holiday</field>
+            <field name="arch" type="xml">
+                <list string="Jours Fériés" editable="bottom">
+                    <field name="date"/>
+                    <field name="name"/>
+                    <field name="description"/>
+                    <field name="active"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- ── Form view ── -->
+        <record id="hr_public_holiday_view_form" model="ir.ui.view">
+            <field name="name">hr.public.holiday.form</field>
+            <field name="model">hr.public.holiday</field>
+            <field name="arch" type="xml">
+                <form string="Jour Férié">
+                    <sheet>
+                        <group>
+                            <field name="date"/>
+                            <field name="name"/>
+                            <field name="description"/>
+                            <field name="active"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- ── Search view ── -->
+        <record id="hr_public_holiday_view_search" model="ir.ui.view">
+            <field name="name">hr.public.holiday.search</field>
+            <field name="model">hr.public.holiday</field>
+            <field name="arch" type="xml">
+                <search string="Jours Fériés">
+                    <field name="name"/>
+                    <field name="date"/>
+                    <filter name="active"    string="Actifs" domain="[('active','=',True)]"/>
+                    <filter name="year_2025" string="2025"
+                            domain="[('date','&gt;=','2025-01-01'),('date','&lt;=','2025-12-31')]"/>
+                    <filter name="year_2026" string="2026"
+                            domain="[('date','&gt;=','2026-01-01'),('date','&lt;=','2026-12-31')]"/>
+                    <filter name="year_2027" string="2027"
+                            domain="[('date','&gt;=','2027-01-01'),('date','&lt;=','2027-12-31')]"/>
+                </search>
+            </field>
+        </record>
+
+        <!-- ── Window action ── -->
+        <record id="action_hr_public_holiday" model="ir.actions.act_window">
+            <field name="name">Jours Fériés</field>
+            <field name="res_model">hr.public.holiday</field>
+            <field name="view_mode">list,form</field>
+            <field name="search_view_id" ref="hr_public_holiday_view_search"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Aucun jour férié configuré.
+                </p>
+                <p>
+                    Ajoutez les jours fériés marocains pour que le système
+                    avertisse les employés lors de la confirmation d'une demande de congé.
+                </p>
+            </field>
+        </record>
+
+        <!-- ── Menu under Time Off > Configuration ── -->
+        <menuitem
+            id="menu_hr_public_holiday"
+            name="Jours Fériés"
+            parent="hr_holidays.menu_hr_holidays_configuration"
+            action="action_hr_public_holiday"
+            sequence="2"/>
+
+    </data>
+</odoo>

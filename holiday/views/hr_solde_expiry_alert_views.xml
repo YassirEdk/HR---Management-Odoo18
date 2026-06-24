@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══ List view ══ -->
+    <record id="view_hr_solde_expiry_alert_list" model="ir.ui.view">
+        <field name="name">hr.solde.expiry.alert.list</field>
+        <field name="model">hr.solde.expiry.alert</field>
+        <field name="arch" type="xml">
+            <list string="Anciennete 2 ans - Alertes" create="0" delete="0"
+                  default_order="days_remaining asc"
+                  decoration-danger="days_remaining &lt;= 7"
+                  decoration-warning="days_remaining &gt; 7">
+                <field name="employee_id"    string="Employé"/>
+                <field name="solde_conge"    string="Solde actuel (j)" digits="[6,2]"/>
+                <field name="hire_date"      string="Date d'embauche"/>
+                <field name="expiry_date"    string="Date anniversaire 2 ans"/>
+                <field name="days_remaining" string="Jours restants"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ══ Window action — opens as popup ══ -->
+    <record id="action_hr_solde_expiry_alerts" model="ir.actions.act_window">
+        <field name="name">Alertes Expiration Solde</field>
+        <field name="res_model">hr.solde.expiry.alert</field>
+        <field name="view_mode">list</field>
+        <field name="domain">[('dismissed', '=', False)]</field>
+        <field name="context">{'create': False}</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- ══ Server action that checks and opens popup if alerts exist ══ -->
+    <record id="action_check_solde_expiry" model="ir.actions.server">
+        <field name="name">Vérifier Alertes Solde</field>
+        <field name="model_id" ref="model_hr_solde_expiry_alert"/>
+        <field name="state">code</field>
+        <field name="code">
+pending = env['hr.solde.expiry.alert'].search([('dismissed', '=', False)])
+if pending:
+    action = {
+        'type': 'ir.actions.act_window',
+        'name': 'Alertes Expiration Solde Conge',
+        'res_model': 'hr.solde.expiry.alert',
+        'view_mode': 'list',
+        'domain': [('dismissed', '=', False)],
+        'context': {'create': False},
+        'target': 'new',
+    }
+else:
+    action = {
+        'type': 'ir.actions.client',
+        'tag': 'display_notification',
+        'params': {
+            'title': 'Alertes Solde Conge',
+            'message': 'Aucune alerte en attente.',
+            'type': 'success',
+            'sticky': False,
+        }
+    }
+        </field>
+    </record>
+
+    <!-- ══ Menu ══ -->
+    <menuitem
+        id="menu_hr_solde_expiry_alerts"
+        name="Alertes Expiration Solde"
+        parent="hr_holidays.menu_hr_holidays_root"
+        action="action_check_solde_expiry"
+        groups="holiday.group_holiday_hr"
+        sequence="5"
+    />
+
+</odoo>

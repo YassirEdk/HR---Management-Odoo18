@@ -1,0 +1,25 @@
+{
+    'name': 'Attendance Devices',
+    'authors': 'Med Africa Logistics',
+    'version': '1.0',
+    'category': 'Human Resources',
+    'summary': 'Manage attendance devices',
+    'depends': ['hr', 'base', 'hr_attendance', 'employee'],
+    'data': [
+        "security/ir.model.access.csv",
+        "views/attendance_device_views.xml",
+        "data/attendance_device_cron.xml",
+        "views/filter_attendance.xml",
+        "views/filter_attendance_dept.xml",
+        "views/attendance_form_break.xml",
+        "views/shift_config_views.xml",
+        "views/hr_department_type_form_shifts.xml",
+        "data/Shift_data.xml",
+        "views/attendance_overview_wizard_views.xml",
+        "data/missing_checkout_cron.xml",
+        "data/clear_invalid_breaks_action.xml",
+
+    ],
+    'application': False,
+    'license': 'LGPL-3',
+}

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- SIÈGE ─ standard day shift -->
+    <record id="shift_config_siege_standard" model="attendance.shift.config">
+        <field name="department_type">siege</field>
+        <field name="shift_name">Standard</field>
+        <field name="start_time">8.5</field>    <!-- 08:30 -->
+        <field name="end_time">17.0</field>     <!-- 17:00 -->
+        <field name="break_start">12.0</field>  <!-- 12:00 -->
+        <field name="break_end">14.0</field>    <!-- 14:00 -->
+    </record>
+
+    <!-- AGENCE ─ standard day shift -->
+    <record id="shift_config_agence_standard" model="attendance.shift.config">
+        <field name="department_type">agence</field>
+        <field name="shift_name">Standard</field>
+        <field name="start_time">8.5</field>    <!-- 08:30 -->
+        <field name="end_time">19.0</field>     <!-- 19:00 -->
+        <field name="break_start">12.0</field>  <!-- 12:00 -->
+        <field name="break_end">13.0</field>    <!-- 13:00 -->
+    </record>
+
+    <!-- WAREHOUSE ─ day shift -->
+    <record id="shift_config_warehouse_day" model="attendance.shift.config">
+        <field name="department_type">warehouse</field>
+        <field name="shift_name">day</field>
+        <field name="start_time">8.0</field>    <!-- 08:00 -->
+        <field name="end_time">17.0</field>     <!-- 17:00 -->
+        <field name="break_start">12.0</field>  <!-- 12:00 -->
+        <field name="break_end">13.0</field>    <!-- 13:00 -->
+    </record>
+
+    <!-- WAREHOUSE ─ night shift (crosses midnight: 21:00 → 06:00 = 9h) -->
+    <record id="shift_config_warehouse_night" model="attendance.shift.config">
+        <field name="department_type">warehouse</field>
+        <field name="shift_name">night</field>
+        <field name="start_time">21.0</field>   <!-- 21:00 -->
+        <field name="end_time">6.0</field>      <!-- 06:00 next day (crosses midnight) -->
+        <field name="break_start">1.0</field>   <!-- 01:00 -->
+        <field name="break_end">1.5</field>     <!-- 01:30 -->
+    </record>
+
+    <!-- AÉROPORT ─ standard day shift -->
+    <record id="shift_config_aeroport_standard" model="attendance.shift.config">
+        <field name="department_type">aeroport</field>
+        <field name="shift_name">Standard</field>
+        <field name="start_time">8.5</field>    <!-- 08:30 -->
+        <field name="end_time">17.0</field>     <!-- 17:00 -->
+        <field name="break_start">12.0</field>  <!-- 12:00 -->
+        <field name="break_end">14.0</field>    <!-- 14:00 -->
+    </record>
+
+</odoo>

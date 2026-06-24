@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="module_category_employee_custom" model="ir.module.category">
+        <field name="name">Gestion Employés</field>
+        <field name="description">Gestion des employés, congés et périodes d'essai</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="group_employee_hr" model="res.groups">
+        <field name="name">RH</field>
+        <field name="category_id" ref="module_category_employee_custom"/>
+        <field name="comment">Accès RH : consultation des fiches employés, réception des alertes période d'essai par email. Solde congé en lecture seule.</field>
+    </record>
+
+    <record id="group_employee_manager" model="res.groups">
+        <field name="name">Manager</field>
+        <field name="category_id" ref="module_category_employee_custom"/>
+        <field name="implied_ids" eval="[(4, ref('group_employee_hr'))]"/>
+        <field name="comment">Accès Manager : toutes les permissions RH. Solde congé en lecture seule. Seul l'administrateur Odoo peut modifier le solde congé.</field>
+    </record>
+
+</odoo>

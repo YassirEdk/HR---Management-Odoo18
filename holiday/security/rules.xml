@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Holiday User: Can only edit their own draft/unconfirmed requests -->
+        <record id="rule_hr_leave_user_own_only_edit_draft" model="ir.rule">
+            <field name="name">Holiday User: edit only own draft/unconfirmed</field>
+            <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+            <field name="groups" eval="[(4, ref('holiday.group_holiday_user'))]"/>
+            <field name="domain_force">
+                [('employee_id.user_id', '=', user.id), ('state', 'in', ('draft','x_edit'))]
+            </field>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="0"/>
+        </record>
+
+        <!-- Holiday Admin (Manager): Can see and manage unconfirmed requests -->
+        <record id="rule_hr_leave_admin_manage_unconfirmed" model="ir.rule">
+            <field name="name">Holiday Manager: manage unconfirmed requests</field>
+            <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+            <field name="groups" eval="[(4, ref('holiday.group_holiday_admin'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="0"/>
+        </record>
+
+        <!-- Holiday HR: Can see and manage all requests -->
+        <record id="rule_hr_leave_hr_all_access" model="ir.rule">
+            <field name="name">Holiday RH: full access to all requests</field>
+            <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+            <field name="groups" eval="[(4, ref('holiday.group_holiday_hr'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+
+    </data>
+</odoo>

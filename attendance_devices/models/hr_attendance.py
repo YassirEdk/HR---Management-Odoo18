@@ -1,0 +1,589 @@
+from odoo import models, fields, api
+from datetime import timedelta
+from zoneinfo import ZoneInfo
+import logging
+
+_logger = logging.getLogger(__name__)
+
+
+class HrAttendance(models.Model):
+    _inherit = 'hr.attendance'
+
+    missing_checkout = fields.Boolean(
+        string='Missing Checkout',
+        default=False,
+    )
+
+
+    is_absent = fields.Boolean(
+        string='Absent',
+        default=False,
+        help='True when auto-generated because the employee had no check-in that day.',
+    )
+
+    department_type = fields.Selection(
+        related='employee_id.department_type',
+        string='Department Type',
+        store=True,
+    )
+
+    # The employee's chosen shift — used as the 2nd grouping level
+    # (Department Type > Shift). Shows the shift name (day / night / Standard…).
+    shift_config_id = fields.Many2one(
+        'attendance.shift.config',
+        related='employee_id.shift_config_id',
+        string='Shift',
+        store=True,
+        index=True,
+    )
+
+    department_shift = fields.Char(
+        string='Department / Shift',
+        compute='_compute_department_shift',
+        store=True,
+    )
+
+    @api.depends('employee_id.department_type', 'employee_id.shift_type',
+                 'employee_id.shift_config_id')
+    def _compute_department_shift(self):
+        labels = self.env['hr.department.type'].get_label_map()
+        ShiftConfig = self.env['attendance.shift.config']
+        counts = {}  # department_type -> number of configured shifts (cached)
+        for att in self:
+            emp        = att.employee_id
+            dept       = emp.department_type or ''
+            dept_label = labels.get(dept, dept or 'Other')
+            if dept not in counts:
+                counts[dept] = ShiftConfig.search_count(
+                    [('department_type', '=', dept)]) if dept else 0
+            # Employee's actual shift name (new picker first, warehouse fallback)
+            shift = ''
+            if emp.shift_config_id:
+                shift = emp.shift_config_id.shift_name or ''
+            elif emp.shift_type:
+                shift = emp.shift_type
+            # Only split by shift when the department actually has several
+            if shift and counts[dept] > 1:
+                att.department_shift = f"{dept_label} {shift.capitalize()}"
+            else:
+                att.department_shift = dept_label
+
+    shift_type = fields.Selection(
+        selection=[('day', 'Day Shift'), ('night', 'Night Shift')],
+        string='Shift',
+        compute='_compute_shift_type',
+        store=True,
+        group_expand='_expand_shift_type',
+    )
+
+    @api.model
+    def _expand_shift_type(self, states, domain):
+        # Only expand day/night — never show None/empty group
+        return ['day', 'night']
+
+    @api.depends('employee_id.shift_type', 'employee_id.department_type')
+    def _compute_shift_type(self):
+        for att in self:
+            # Only set shift_type for warehouse employees
+            if att.employee_id.department_type == 'warehouse':
+                att.shift_type = att.employee_id.shift_type or False
+            else:
+                att.shift_type = False
+
+    def _recompute_shift_type_all(self):
+        """Force recompute shift_type for all records — call after upgrade."""
+        self.env.cr.execute(
+            """
+            UPDATE hr_attendance a
+               SET shift_type = CASE
+                   WHEN e.department_type = 'warehouse' THEN e.shift_type
+                   ELSE NULL
+               END
+              FROM hr_employee e
+             WHERE e.id = a.employee_id
+            """
+        )
+        self.invalidate_model(['shift_type'])
+        return True
+
+    @api.model
+    def _auto_init(self):
+        res = super()._auto_init()
+        # Recompute shift_type for all existing records on module install/upgrade
+        try:
+            self.env.cr.execute(
+                """
+                UPDATE hr_attendance a
+                   SET shift_type = CASE
+                       WHEN e.department_type = 'warehouse' THEN e.shift_type
+                       ELSE NULL
+                   END
+                  FROM hr_employee e
+                 WHERE e.id = a.employee_id
+                """
+            )
+        except Exception:
+            pass
+        return res
+
+    def init(self):
+        # Recompute shift_type and department_shift on every upgrade
+        try:
+            self.env.cr.execute(
+                """
+                UPDATE hr_attendance a
+                   SET shift_type = CASE
+                       WHEN e.department_type = 'warehouse' THEN e.shift_type
+                       ELSE NULL
+                   END,
+                   department_shift = CASE
+                       WHEN e.department_type = 'warehouse' AND e.shift_type IS NOT NULL
+                           THEN 'Warehouse ' || initcap(e.shift_type)
+                       WHEN e.department_type = 'siege'     THEN 'Siège'
+                       WHEN e.department_type = 'agence'    THEN 'Agence'
+                       WHEN e.department_type = 'warehouse' THEN 'Warehouse'
+                       WHEN e.department_type = 'aeroport'  THEN 'Aéroport'
+                       ELSE COALESCE(e.department_type, 'Other')
+                   END
+                  FROM hr_employee e
+                 WHERE e.id = a.employee_id
+                """
+            )
+        except Exception:
+            pass
+
+        # Refresh department_shift with the general multi-shift labelling
+        # (uses the employee's shift_config_id, so custom department types are
+        # split by their shifts too — not just warehouse).
+        try:
+            recs = self.search([])
+            if recs:
+                recs._compute_department_shift()
+                recs.flush_recordset(['department_shift'])
+        except Exception:
+            pass
+
+    checkin_status = fields.Selection(
+        selection=[
+            ('on_time', 'In Time'),
+            ('late',    'Late'),
+            ('absent',  'Absent'),
+            ('timeoff', 'Time Off'),
+            ('autres',  'Missing Checkout'),
+        ],
+        string='Status',
+        compute='_compute_checkin_status',
+        store=True,
+        group_expand='_expand_checkin_status',
+    )
+
+    @api.model
+    def _expand_checkin_status(self, states, domain):
+        return ['on_time', 'late', 'absent', 'timeoff', 'autres']
+
+    @api.depends(
+        'check_in',
+        'check_out',
+        'is_absent',
+        'missing_checkout',
+        'employee_id.shift_config_id',
+        'employee_id.shift_config_id.start_time',
+        'employee_id.shift_config_id.late_tolerance_minutes',
+    )
+    def _compute_checkin_status(self):
+        TZ  = ZoneInfo("Africa/Casablanca")
+        UTC = ZoneInfo("UTC")
+
+        for att in self:
+            # Absent or timeoff flag takes absolute priority
+            if att.is_absent:
+                # Check if employee has approved leave for this day
+                if att.check_in:
+                    check_date = att.check_in.date()
+                    leave = att.env['hr.leave'].search([
+                        ('employee_id', '=', att.employee_id.id),
+                        ('state',       '=', 'validate'),
+                        ('date_from',   '<=', str(check_date)),
+                        ('date_to',     '>=', str(check_date)),
+                    ], limit=1)
+                    if leave:
+                        att.checkin_status = 'timeoff'
+                        continue
+                att.checkin_status = 'absent'
+                continue
+
+            # No check_in at all
+            if not att.check_in:
+                att.checkin_status = 'autres'
+                continue
+
+            # Auto-closed by cron: check_out = check_in means real missing checkout
+            if att.missing_checkout and att.check_out and att.check_out == att.check_in:
+                att.checkin_status = 'autres'
+                continue
+
+            config = att.employee_id.shift_config_id
+            if not config:
+                att.checkin_status = 'autres'
+                continue
+
+            # Get tolerance from shift config (default 30 min)
+            tolerance = config.late_tolerance_minutes if config.late_tolerance_minutes else 30
+
+            # Convert check_in (UTC naive) → Africa/Casablanca local
+            check_in_local  = att.check_in.replace(tzinfo=UTC).astimezone(TZ)
+            checkin_minutes = check_in_local.hour * 60 + check_in_local.minute
+            work_start_min  = int(config.start_time * 60)
+            diff            = checkin_minutes - work_start_min
+
+            # on_time: arrived within tolerance window of shift start
+            # late:    arrived after tolerance window
+            # Both apply whether or not checkout exists yet
+            if diff <= tolerance:
+                att.checkin_status = 'on_time'
+            else:
+                att.checkin_status = 'late'
+
+    # ── break_start, break_end, break_duration ───────────────────────────────
+    # Plain stored fields set via raw SQL from ZK device gap analysis
+    break_start = fields.Datetime(string='Break Start')
+    break_end   = fields.Datetime(string='Break End')
+    break_duration = fields.Float(string='Break Duration (h)')
+
+    # ── net_worked_hours — new field (span - break) ──────────────────────────
+    # A NEW field separate from Odoo's native worked_hours.
+    # Computed live from check_in, check_out, break_duration via ORM.
+    # No raw SQL needed — ORM handles it automatically.
+    net_worked_hours = fields.Float(
+        string='Net Worked Hours',
+        compute='_compute_net_worked_hours',
+        store=False,  # always live, never stale
+    )
+
+    def _build_attendance_name(self, att):
+        emp  = att.employee_id.name or "Unknown"
+        date = att.check_in.strftime('%d/%m/%Y') if att.check_in else ''
+        if att.check_in and att.check_out:
+            h  = int(att.net_worked_hours)
+            m  = int(round((att.net_worked_hours - h) * 60))
+            return f"{emp} — {date} ({h:02d}:{m:02d})"
+        elif att.check_in:
+            return f"{emp} — {date} (open)"
+        return emp
+
+    def name_get(self):
+        return [(att.id, self._build_attendance_name(att)) for att in self]
+
+    def _compute_display_name(self):
+        for att in self:
+            att.display_name = self._build_attendance_name(att)
+
+    @api.depends('check_in', 'check_out', 'break_duration', 'worked_hours')
+    def _compute_net_worked_hours(self):
+        for att in self:
+            if not att.check_in:
+                att.net_worked_hours = 0.0
+                continue
+            if not att.check_out:
+                # Open record — use stored worked_hours (sum of closed sessions)
+                att.net_worked_hours = att.worked_hours or 0.0
+                continue
+            span = (att.check_out - att.check_in).total_seconds() / 3600.0
+            att.net_worked_hours = max(0.0, span - (att.break_duration or 0.0))
+
+    @api.model
+    def recompute_worked_hours_for_ids(self, ids):
+        """Force update worked_hours in DB after raw SQL writes."""
+        if not ids:
+            return
+        self.env.cr.execute(
+            """
+            UPDATE hr_attendance
+               SET worked_hours = GREATEST(
+                   0.0,
+                   EXTRACT(EPOCH FROM (check_out - check_in)) / 3600.0
+                   - COALESCE(break_duration, 0.0)
+               ),
+               write_date = NOW()
+             WHERE id = ANY(%s)
+               AND check_in  IS NOT NULL
+               AND check_out IS NOT NULL
+            """,
+            (list(ids),)
+        )
+
+    # ── MAINTENANCE: clear breaks on records with no real completed session ──
+    @api.model
+    def action_clear_invalid_breaks(self):
+        """Remove break_start/break_end/break_duration from records that have
+        no genuine completed work session — i.e. open records (no check_out)
+        or missing-checkout records (check_out == check_in). These can never
+        contain a real break; any value there is a leftover phantom break."""
+        cr = self.env.cr
+        cr.execute(
+            """
+            UPDATE hr_attendance
+               SET break_start    = NULL,
+                   break_end      = NULL,
+                   break_duration = 0.0,
+                   write_date     = NOW()
+             WHERE COALESCE(break_duration, 0.0) <> 0.0
+               AND (check_out IS NULL OR check_out = check_in)
+            """
+        )
+        count = cr.rowcount
+        self.invalidate_model(['break_start', 'break_end', 'break_duration'])
+        _logger.info("[CLEAN-BREAK] Cleared phantom break on %s record(s).", count)
+        return count
+
+    # ── HELPER: force-close all open records for an employee ─────────────────
+    def close_open_records_for_employee(self, employee_id, by_shift_day, cutoff=0):
+        cr = self.env.cr
+        cr.execute(
+            "SELECT id, check_in FROM hr_attendance "
+            "WHERE employee_id = %s AND check_out IS NULL AND is_absent = FALSE",
+            (employee_id,)
+        )
+        open_rows = cr.fetchall()
+        if not open_rows:
+            return
+
+        for (rec_id, rec_check_in) in open_rows:
+            if not rec_check_in:
+                continue
+            if cutoff and rec_check_in.hour < cutoff:
+                open_shift_day = (rec_check_in - timedelta(days=1)).date()
+            else:
+                open_shift_day = rec_check_in.date()
+
+            if open_shift_day in by_shift_day:
+                day_ts = sorted(by_shift_day[open_shift_day])
+                # Only use even-indexed timestamps as checkouts
+                # Odd count means last ts is a check-in — don't use it as checkout
+                checkouts = [day_ts[i] for i in range(1, len(day_ts), 2)]
+                if not checkouts:
+                    # No checkout yet — leave open
+                    continue
+                best_out = max(checkouts)
+                if best_out > rec_check_in + timedelta(minutes=5):
+                    cr.execute(
+                        "UPDATE hr_attendance SET check_out = %s, missing_checkout = FALSE WHERE id = %s",
+                        (best_out, rec_id)
+                    )
+                    _logger.info("[CLOSE] emp=%s: closed id=%s with OUT=%s", employee_id, rec_id, best_out)
+                else:
+                    _logger.info("[CLOSE] emp=%s: id=%s same/close timestamp — leaving open", employee_id, rec_id)
+            else:
+                # Stale record from previous day — close at shift end time
+                emp_obj = self.env['hr.employee'].browse(employee_id)
+                config  = emp_obj.shift_config_id if emp_obj else False
+                if config:
+                    from zoneinfo import ZoneInfo as _ZI
+                    from datetime import datetime as _dt
+                    _TZ  = _ZI("Africa/Casablanca")
+                    _UTC = _ZI("UTC")
+                    ci_local   = rec_check_in.replace(tzinfo=_UTC).astimezone(_TZ)
+                    ci_day     = ci_local.date()
+                    end_min    = int(config.end_time * 60)
+                    end_h      = end_min // 60
+                    end_m      = end_min % 60
+                    shift_end  = _dt.combine(
+                        ci_day,
+                        __import__('datetime').time(end_h, end_m, 0),
+                        tzinfo=_TZ,
+                    ).astimezone(_UTC).replace(tzinfo=None)
+                    cr.execute(
+                        "UPDATE hr_attendance SET check_out = %s, missing_checkout = TRUE, checkin_status = 'autres' WHERE id = %s",
+                        (shift_end, rec_id)
+                    )
+                else:
+                    cr.execute(
+                        "UPDATE hr_attendance SET check_out = check_in, missing_checkout = TRUE, checkin_status = 'autres' WHERE id = %s",
+                        (rec_id,)
+                    )
+                _logger.warning("[CLOSE] emp=%s: stale id=%s flagged missing", employee_id, rec_id)
+
+        self.invalidate_model()
+
+    # ── CRON: auto-close missing checkouts ───────────────────────────────────
+    @api.model
+    def cron_close_missing_checkout(self):
+        from zoneinfo import ZoneInfo
+        from datetime import datetime as dt
+
+        now_utc   = fields.Datetime.now()
+        TZ        = ZoneInfo("Africa/Casablanca")
+        UTC       = ZoneInfo("UTC")
+        now_local = now_utc.replace(tzinfo=UTC).astimezone(TZ)
+
+        _logger.info("[AUTO-CLOSE] Running at %s (local: %s)", now_utc, now_local)
+
+        cr = self.env.cr
+
+        # Fetch all open non-absent records
+        cr.execute(
+            """
+            SELECT a.id, a.employee_id, a.check_in
+              FROM hr_attendance a
+             WHERE a.check_out IS NULL
+               AND a.check_in  IS NOT NULL
+               AND a.is_absent = FALSE
+             ORDER BY a.check_in
+            """
+        )
+        rows = cr.fetchall()
+
+        if not rows:
+            _logger.info("[AUTO-CLOSE] No open records found.")
+            return
+
+        emp_ids   = list({r[1] for r in rows})
+        employees = {e.id: e for e in self.env['hr.employee'].browse(emp_ids)}
+
+        ids_to_close = []
+
+        for rec_id, emp_id, check_in in rows:
+            emp    = employees.get(emp_id)
+            config = emp.shift_config_id if emp else False
+
+            if not config:
+                # No shift config — use fallback: close if open since yesterday
+                cutoff = now_utc.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=5)
+                if check_in < cutoff:
+                    ids_to_close.append(rec_id)
+                    _logger.warning("[AUTO-CLOSE] No shift config — closing id=%s emp=%s", rec_id, emp_id)
+                continue
+
+            # Calculate shift end + max_extra_hours in local time
+            shift_end_minutes  = int(config.end_time * 60)
+            shift_end_h        = shift_end_minutes // 60
+            shift_end_m        = shift_end_minutes % 60
+            extra_hours        = config.max_extra_hours or 2.0
+            extra_minutes      = int(extra_hours * 60)
+
+            # Deadline = shift_end + max_extra_hours (local time today)
+            deadline_minutes   = shift_end_minutes + extra_minutes
+
+            # Convert check_in to local
+            check_in_local     = check_in.replace(tzinfo=UTC).astimezone(TZ)
+            check_in_day       = check_in_local.date()
+
+            # Build deadline datetime in local time for the check_in day
+            deadline_local_h   = (deadline_minutes // 60) % 24
+            deadline_local_m   = deadline_minutes % 60
+            deadline_local     = dt.combine(
+                check_in_day,
+                __import__('datetime').time(deadline_local_h, deadline_local_m, 0),
+                tzinfo=TZ,
+            )
+
+            # If deadline crossed midnight, add 1 day
+            if deadline_minutes >= 1440:
+                deadline_local = deadline_local + timedelta(days=1)
+
+            # Close if current local time is past the deadline
+            if now_local > deadline_local:
+                ids_to_close.append(rec_id)
+                _logger.info(
+                    "[AUTO-CLOSE] id=%s %s — shift_end=%02d:%02d + %.1fh — closing",
+                    rec_id, emp.name, shift_end_h, shift_end_m, extra_hours
+                )
+            else:
+                _logger.debug(
+                    "[AUTO-CLOSE] id=%s %s — deadline %s not reached yet",
+                    rec_id, emp.name, deadline_local
+                )
+
+        if not ids_to_close:
+            _logger.info("[AUTO-CLOSE] No records past deadline.")
+            return
+
+        cr.execute(
+            """
+            UPDATE hr_attendance
+               SET check_out        = check_in,
+                   missing_checkout = TRUE,
+                   checkin_status   = 'autres',
+                   write_date       = NOW()
+             WHERE id = ANY(%s)
+            """,
+            (ids_to_close,)
+        )
+
+        self.invalidate_model()
+        _logger.info("[AUTO-CLOSE] Closed %s record(s).", len(ids_to_close))
+
+    # ── CRON: close absent/timeoff records at shift end ──────────────────────
+    @api.model
+    def cron_close_absent_records(self):
+        from zoneinfo import ZoneInfo as _ZI
+        from datetime import datetime as _dt
+        import datetime as _datetime
+
+        now_utc   = fields.Datetime.now()
+        TZ        = _ZI("Africa/Casablanca")
+        UTC       = _ZI("UTC")
+        now_local = now_utc.replace(tzinfo=UTC).astimezone(TZ)
+
+        _logger.info("[CLOSE-ABSENT] Running at %s local=%s", now_utc, now_local)
+
+        cr = self.env.cr
+
+        cr.execute(
+            "SELECT a.id, a.employee_id, a.check_in "
+            "FROM hr_attendance a "
+            "WHERE a.check_out IS NULL "
+            "AND a.check_in IS NOT NULL "
+            "AND a.is_absent = TRUE "
+            "ORDER BY a.check_in"
+        )
+        rows = cr.fetchall()
+
+        if not rows:
+            _logger.info("[CLOSE-ABSENT] No open absent records found.")
+            return
+
+        emp_ids   = list({r[1] for r in rows})
+        employees = {e.id: e for e in self.env['hr.employee'].browse(emp_ids)}
+        ids_to_close = []
+
+        for rec_id, emp_id, check_in in rows:
+            emp    = employees.get(emp_id)
+            config = emp.shift_config_id if emp else False
+
+            if not config:
+                ids_to_close.append((rec_id, check_in))
+                continue
+
+            check_in_local = check_in.replace(tzinfo=UTC).astimezone(TZ)
+            check_in_day   = check_in_local.date()
+            shift_end_min  = int(config.end_time * 60)
+            shift_end_h    = shift_end_min // 60
+            shift_end_m    = shift_end_min % 60
+
+            shift_end_local = _dt.combine(
+                check_in_day,
+                _datetime.time(shift_end_h, shift_end_m, 0),
+                tzinfo=TZ,
+            )
+            if config.end_time < config.start_time:
+                shift_end_local += timedelta(days=1)
+
+            if now_local >= shift_end_local:
+                shift_end_utc = shift_end_local.astimezone(UTC).replace(tzinfo=None)
+                ids_to_close.append((rec_id, shift_end_utc))
+                _logger.info("[CLOSE-ABSENT] closing id=%s emp=%s at shift_end=%s",
+                             rec_id, emp.name, shift_end_utc)
+
+        if not ids_to_close:
+            _logger.info("[CLOSE-ABSENT] No records past shift end.")
+            return
+
+        for rec_id, checkout_ts in ids_to_close:
+            cr.execute(
+                "UPDATE hr_attendance SET check_out = %s, write_date = NOW() WHERE id = %s",
+                (checkout_ts, rec_id)
+            )
+
+        self.invalidate_model()
+        _logger.info("[CLOSE-ABSENT] Closed %s absent record(s).", len(ids_to_close))

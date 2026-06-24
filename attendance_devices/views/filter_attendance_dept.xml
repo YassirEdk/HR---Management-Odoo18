@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        ── Extend attendance LIST view: add status badge column ──
+    -->
+    <record id="hr_attendance_list_inherit_status" model="ir.ui.view">
+        <field name="name">hr.attendance.list.inherit.status</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.view_attendance_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="is_absent" column_invisible="1"/>
+                <field
+                    name="net_worked_hours"
+                    string="Net Worked (h)"
+                    widget="float_time"/>
+                <field
+                    name="break_duration"
+                    string="Break (h)"
+                    widget="float_time"/>
+                <field
+                    name="checkin_status"
+                    string="Status"
+                    widget="badge"
+                    decoration-success="checkin_status == 'on_time'"
+                    decoration-warning="checkin_status == 'late'"
+                    decoration-danger="checkin_status == 'absent'"
+                    decoration-info="checkin_status == 'timeoff'"
+                    decoration-muted="checkin_status == 'autres'"/>
+            </xpath>
+
+            <!-- Hide all native columns we don't want -->
+            <xpath expr="//field[@name='worked_hours']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='overtime_hours']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ── Extend attendance SEARCH view ── -->
+    <record id="view_hr_attendance_filter_dept" model="ir.ui.view">
+        <field name="name">hr.attendance.search.dept</field>
+        <field name="model">hr.attendance</field>
+        <field name="inherit_id" ref="hr_attendance.hr_attendance_view_filter"/>
+        <field name="arch" type="xml">
+
+            <!-- Date filters inserted BEFORE the existing myteam filter -->
+            <xpath expr="//filter[@name='myteam']" position="before">
+
+                <!-- Searchable date field — renders a calendar date picker -->
+                <field
+                    name="check_in"
+                    string="Date"
+                    filter_domain="[
+                        ('check_in', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')),
+                        ('check_in', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))
+                    ]"/>
+
+                <!-- Quick date filters -->
+                <filter
+                    string="Today"
+                    name="today"
+                    domain="[
+                        ('check_in', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')),
+                        ('check_in', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))
+                    ]"/>
+                <filter
+                    string="Yesterday"
+                    name="yesterday"
+                    domain="[
+                        ('check_in', '&gt;=', (context_today() - relativedelta(days=1)).strftime('%Y-%m-%d 00:00:00')),
+                        ('check_in', '&lt;=', (context_today() - relativedelta(days=1)).strftime('%Y-%m-%d 23:59:59'))
+                    ]"/>
+                <filter
+                    string="This Week"
+                    name="this_week"
+                    domain="[
+                        ('check_in', '&gt;=', (context_today() - relativedelta(days=context_today().weekday())).strftime('%Y-%m-%d 00:00:00')),
+                        ('check_in', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))
+                    ]"/>
+                <filter
+                    string="This Month"
+                    name="this_month"
+                    domain="[
+                        ('check_in', '&gt;=', context_today().strftime('%Y-%m-01 00:00:00')),
+                        ('check_in', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))
+                    ]"/>
+                <separator/>
+
+            </xpath>
+
+            <!-- Department type + status filters AFTER myteam -->
+            <xpath expr="//filter[@name='myteam']" position="after">
+                <separator/>
+                <filter
+                    string="Siège"
+                    name="filter_siege"
+                    domain="[('department_type', '=', 'siege')]"/>
+                <filter
+                    string="Agence"
+                    name="filter_agence"
+                    domain="[('department_type', '=', 'agence')]"/>
+                <filter
+                    string="Warehouse"
+                    name="filter_warehouse"
+                    domain="[('department_type', '=', 'warehouse')]"/>
+                <filter
+                    string="Aéroport"
+                    name="filter_aeroport"
+                    domain="[('department_type', '=', 'aeroport')]"/>
+                <filter
+                    string="Warehouse Day"
+                    name="filter_warehouse_day"
+                    domain="[('department_type', '=', 'warehouse'), ('shift_type', '=', 'day')]"/>
+                <filter
+                    string="Warehouse Night"
+                    name="filter_warehouse_night"
+                    domain="[('department_type', '=', 'warehouse'), ('shift_type', '=', 'night')]"/>
+                <separator/>
+                <filter
+                    string="In Time"
+                    name="filter_on_time"
+                    domain="[('checkin_status', '=', 'on_time')]"/>
+                <filter
+                    string="Late"
+                    name="filter_late"
+                    domain="[('checkin_status', '=', 'late')]"/>
+                <filter
+                    string="Absent"
+                    name="filter_absent"
+                    domain="[('checkin_status', '=', 'absent')]"/>
+                <filter
+                    string="Missing Checkout"
+                    name="filter_autres"
+                    domain="[('checkin_status', '=', 'autres')]"/>
+                <filter
+                    string="Time Off"
+                    name="filter_timeoff"
+                    domain="[('checkin_status', '=', 'timeoff')]"/>
+            </xpath>
+
+            <!-- Group By additions AFTER existing departement group -->
+            <xpath expr="//filter[@name='departement']" position="after">
+                <filter
+                    string="Department / Shift"
+                    name="group_dept_shift"
+                    context="{'group_by': 'department_shift'}"/>
+                <filter
+                    string="Department Type"
+                    name="group_dept_type"
+                    context="{'group_by': 'department_type'}"/>
+                <filter
+                    string="Shift"
+                    name="group_shift_config"
+                    context="{'group_by': 'shift_config_id'}"/>
+                <filter
+                    string="Shift (Warehouse Day/Night)"
+                    name="group_shift_type"
+                    context="{'group_by': 'shift_type'}"/>
+                <filter
+                    string="Status"
+                    name="group_status"
+                    context="{'group_by': 'checkin_status'}"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════
+         TREE / LIST VIEW
+    ══════════════════════════════════════════════════════════ -->
+    <record id="view_attendance_shift_config_tree" model="ir.ui.view">
+        <field name="name">attendance.shift.config.tree</field>
+        <field name="model">attendance.shift.config</field>
+        <field name="arch" type="xml">
+            <list
+                string="Shift Configurations"
+                decoration-info="department_type == 'siege'"
+                decoration-success="department_type == 'agence'"
+                decoration-warning="department_type == 'warehouse'">
+
+                <field name="department_type" optional="show" required="1"/>
+                <field name="shift_name" string="Shift"/>
+                <field name="start_time"      string="Start"       widget="float_time"/>
+                <field name="end_time"        string="End"         widget="float_time"/>
+                <field name="break_start"     string="Break Start" widget="float_time"/>
+                <field name="break_end"       string="Break End"   widget="float_time"/>
+                <field name="break_duration"  string="Break (h)"   widget="float_time" readonly="1" optional="show"/>
+                <field name="worked_hours"    string="Net Hours"   widget="float_time" readonly="1" optional="show"/>
+                <field name="late_tolerance_minutes" string="Late Tolerance (min)" optional="show"/>
+                <field name="max_extra_hours"         string="Max Extra (h)"       optional="show"/>
+
+            </list>
+        </field>
+    </record>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         FORM VIEW
+    ══════════════════════════════════════════════════════════ -->
+    <record id="view_attendance_shift_config_form" model="ir.ui.view">
+        <field name="name">attendance.shift.config.form</field>
+        <field name="model">attendance.shift.config</field>
+        <field name="arch" type="xml">
+            <form string="Shift Configuration">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="shift_name" string="Shift Name"/>
+                        <h1>
+                            <field name="shift_name" placeholder="e.g. Standard, Night…"/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Identity">
+                            <field name="department_type" required="1"/>
+                        </group>
+                    </group>
+
+                    <group string="Hours">
+                        <group>
+                            <field name="start_time"  widget="float_time" string="Start"/>
+                            <field name="end_time"    widget="float_time" string="End"/>
+                            <field name="late_tolerance_minutes" string="Late Tolerance (min)"/>
+                            <field name="max_extra_hours"        string="Max Extra Hours (h)"/>
+                        </group>
+                        <group>
+                            <field name="break_start" widget="float_time" string="Break Start"/>
+                            <field name="break_end"   widget="float_time" string="Break End"/>
+                        </group>
+                    </group>
+
+                    <group string="Summary (computed)">
+                        <field name="break_duration" widget="float_time" readonly="1"/>
+                        <field name="worked_hours"   widget="float_time" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SEARCH VIEW
+    ══════════════════════════════════════════════════════════ -->
+    <record id="view_attendance_shift_config_search" model="ir.ui.view">
+        <field name="name">attendance.shift.config.search</field>
+        <field name="model">attendance.shift.config</field>
+        <field name="arch" type="xml">
+            <search string="Shift Configurations">
+                <field name="shift_name"/>
+                <field name="department_type"/>
+
+                <filter
+                    string="Siège"
+                    name="filter_siege"
+                    domain="[('department_type','=','siege')]"/>
+                <filter
+                    string="Agence"
+                    name="filter_agence"
+                    domain="[('department_type','=','agence')]"/>
+                <filter
+                    string="Warehouse"
+                    name="filter_warehouse"
+                    domain="[('department_type','=','warehouse')]"/>
+
+                <group expand="1" string="Group By">
+                    <filter
+                        string="Department Type"
+                        name="group_dept"
+                        context="{'group_by': 'department_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         ACTION
+    ══════════════════════════════════════════════════════════ -->
+    <record id="action_attendance_shift_config" model="ir.actions.act_window">
+        <field name="name">Shift Configurations</field>
+        <field name="res_model">attendance.shift.config</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_group_dept': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first shift configuration
+            </p>
+            <p>
+                Define working hours, break windows and net hours
+                for each department type and shift.
+            </p>
+        </field>
+    </record>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         MENU
+    ══════════════════════════════════════════════════════════ -->
+    <menuitem
+        id="menu_attendance_shift_config"
+        name="Shift Configurations"
+        parent="hr_attendance.menu_hr_attendance_root"
+        action="action_attendance_shift_config"
+        sequence="30"
+        groups="hr_attendance.group_hr_attendance_manager"/>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         EMPLOYEE FORM INHERIT
+    ══════════════════════════════════════════════════════════ -->
+    <record id="view_employee_form_shift_config" model="ir.ui.view">
+        <field name="name">hr.employee.form.shift.config</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="employee.view_employee_form_badge"/>
+        <field name="priority">30</field>
+        <field name="arch" type="xml">
+            <!-- Place the shift picker right under the warehouse Shift field,
+                 in the HR page. Shows for any NON-warehouse department type
+                 that has more than one shift (warehouse keeps its day/night). -->
+            <xpath expr="//page[@name='hr_info']//field[@name='shift_type']" position="after">
+                <field name="department_shift_count" invisible="1"/>
+                <field
+                    name="shift_config_id"
+                    string="Shift"
+                    domain="[('department_type', '=', department_type)]"
+                    options="{'no_create': True, 'no_open': True}"
+                    invisible="department_shift_count &lt; 2 or department_type == 'warehouse'"
+                    required="department_shift_count &gt; 1 and department_type != 'warehouse'"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

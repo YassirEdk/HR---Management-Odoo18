@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_attendance_device,access_attendance_device,model_attendance_device,,1,1,1,1
+access_attendance_device_sync_wizard,access_attendance_device_sync_wizard,model_attendance_device_sync_wizard,,1,0,1,0
+access_attendance_shift_config_user,attendance.shift.config user,model_attendance_shift_config,base.group_user,1,0,0,0
+access_attendance_shift_config_manager,attendance.shift.config manager,model_attendance_shift_config,base.group_system,1,1,1,1
+access_attendance_overview_wizard,attendance.overview.wizard,model_attendance_overview_wizard,base.group_user,1,1,1,1
+access_attendance_date_filter_wizard,attendance.date.filter.wizard,model_attendance_date_filter_wizard,base.group_user,1,1,1,1

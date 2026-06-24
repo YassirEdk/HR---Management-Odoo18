@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ─────────────────────────────────────────────────────
+         DEPARTMENTS
+         ───────────────────────────────────────────────────── -->
+    <record id="dept_siege" model="hr.department">
+        <field name="name">Siege</field>
+    </record>
+
+    <record id="dept_agence" model="hr.department">
+        <field name="name">Agence</field>
+    </record>
+
+    <record id="dept_warehouse" model="hr.department">
+        <field name="name">Warehouse</field>
+    </record>
+
+    <!-- ─────────────────────────────────────────────────────
+         SHIFTS
+         ───────────────────────────────────────────────────── -->
+    <record id="shift_siege" model="attendance.shift">
+        <field name="name">Siege</field>
+        <field name="work_start">8.0</field>
+        <field name="work_end">17.0</field>
+        <field name="is_night_shift" eval="False"/>
+        <field name="has_break" eval="True"/>
+        <field name="break_start">12.0</field>
+        <field name="break_end">14.0</field>
+        <field name="missing_checkout_delay">1.0</field>
+    </record>
+
+    <record id="shift_agence" model="attendance.shift">
+        <field name="name">Agence</field>
+        <field name="work_start">8.0</field>
+        <field name="work_end">17.0</field>
+        <field name="is_night_shift" eval="False"/>
+        <field name="has_break" eval="True"/>
+        <field name="break_start">12.0</field>
+        <field name="break_end">14.0</field>
+        <field name="missing_checkout_delay">1.0</field>
+    </record>
+
+    <record id="shift_warehouse_day" model="attendance.shift">
+        <field name="name">Warehouse Day</field>
+        <field name="work_start">6.0</field>
+        <field name="work_end">14.0</field>
+        <field name="is_night_shift" eval="False"/>
+        <field name="has_break" eval="True"/>
+        <field name="break_start">10.0</field>
+        <field name="break_end">11.0</field>
+        <field name="missing_checkout_delay">1.0</field>
+    </record>
+
+    <record id="shift_warehouse_night" model="attendance.shift">
+        <field name="name">Warehouse Night</field>
+        <field name="work_start">22.0</field>
+        <field name="work_end">6.0</field>
+        <field name="is_night_shift" eval="True"/>
+        <field name="has_break" eval="True"/>
+        <field name="break_start">2.0</field>
+        <field name="break_end">3.0</field>
+        <field name="missing_checkout_delay">1.0</field>
+    </record>
+
+</odoo>

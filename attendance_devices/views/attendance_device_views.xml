@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================= DEVICE FORM ================= -->
+    <record id="view_attendance_device_form" model="ir.ui.view">
+        <field name="name">attendance.device.form</field>
+        <field name="model">attendance.device</field>
+        <field name="arch" type="xml">
+            <form string="Device">
+                <header>
+                    <button name="action_sync_device"
+                            type="object"
+                            string="Synchroniser maintenant"
+                            class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group string="Connection">
+                        <field name="name"/>
+                        <field name="ip_address"/>
+                        <field name="port"/>
+                        <field name="location"/>
+                        <field name="timezone"/>
+                        <field name="department_type"/>
+                        <field name="last_sync" readonly="1"/>
+                    </group>
+                    <group string="Shift Settings">
+                        <field name="night_shift_cutoff"/>
+                    </group>
+                    <group string="Absence Detection">
+                        <field name="absence_lookback_days"/>
+                        <field name="late_threshold_minutes" string="Absent after (minutes past shift start)"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= DEVICE LIST ================= -->
+    <record id="view_attendance_device_list" model="ir.ui.view">
+        <field name="name">attendance.device.list</field>
+        <field name="model">attendance.device</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="department_type"/>
+                <field name="ip_address"/>
+                <field name="port"/>
+                <field name="location"/>
+                <field name="last_sync"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================= DEVICE ACTION ================= -->
+    <record id="action_attendance_device" model="ir.actions.act_window">
+        <field name="name">Devices</field>
+        <field name="res_model">attendance.device</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= SYNC ALL — shown as top button in list via server action ================= -->
+    <record id="action_sync_all_devices" model="ir.actions.server">
+        <field name="name">🔄 Sync All Devices</field>
+        <field name="model_id" ref="model_attendance_device"/>
+        <field name="binding_model_id" ref="model_attendance_device"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+action = model.action_sync_all_devices()
+        </field>
+    </record>
+
+    <!-- ================= SYNC ALL button injected into list view header ================= -->
+    <record id="view_attendance_device_list_sync_btn" model="ir.ui.view">
+        <field name="name">attendance.device.list.sync.btn</field>
+        <field name="model">attendance.device</field>
+        <field name="inherit_id" ref="attendance_devices.view_attendance_device_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <attribute name="create">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ================= SYNC RESULT WIZARD ================= -->
+    <record id="view_attendance_device_sync_wizard_form" model="ir.ui.view">
+        <field name="name">attendance.device.sync.wizard.form</field>
+        <field name="model">attendance.device.sync.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Résultats Synchronisation" create="false" edit="false">
+                <sheet>
+                    <group>
+                        <field name="message" readonly="1" nolabel="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Close"
+                            class="btn-primary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= MENU ================= -->
+    <menuitem id="menu_attendance_device"
+              name="Devices"
+              parent="hr_attendance.menu_hr_attendance_root"
+              action="action_attendance_device"
+              sequence="15"/>
+
+</odoo>

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+
+    <record id="hr_leave_kanban_my_timeoff_innovative" model="ir.ui.view">
+      <field name="name">hr.leave.kanban.my.timeoff.innovative</field>
+      <field name="model">hr.leave</field>
+      <field name="inherit_id" ref="hr_holidays.hr_leave_view_kanban_my"/>
+      <field name="arch" type="xml">
+
+        <xpath expr="//kanban" position="replace">
+          <!-- ✅ Remove New button -->
+          <kanban class="o_kanban_small_column" create="false">
+
+            <!-- Required fields -->
+            <field name="employee_id"/>
+            <field name="x_timeoff_category"/>
+            <field name="request_date_from"/>
+            <field name="request_date_to"/>
+            <field name="duration_display"/>
+            <field name="private_name"/>
+            <field name="state"/>
+
+            <templates>
+              <t t-name="card">
+
+                <div class="oe_kanban_card oe_kanban_global_click rounded-3 shadow-sm p-3"
+                     style="
+                       border:1px solid #E6E8EF;
+                       background:#FFFFFF;
+                       font-family: 'Inter','Roboto','Helvetica','Arial',sans-serif;
+                     ">
+
+                  <!-- ================= Top ================= -->
+                  <div class="d-flex justify-content-between align-items-start">
+
+                    <!-- Type -->
+                    <div class="text-truncate"
+                         style="
+                           font-size:15px;
+                           font-weight:600;
+                           color:#1F2937;
+                         ">
+                      <field name="x_timeoff_category"/>
+                    </div>
+
+                    <!-- Duration -->
+                    <div class="px-2 py-1 rounded-pill"
+                         style="
+                           font-size:12px;
+                           font-weight:600;
+                           background:#F7F8FC;
+                           border:1px solid #E6E8EF;
+                           color:#374151;
+                         ">
+                      <field name="duration_display"/>
+                    </div>
+
+                  </div>
+
+                  <!-- ================= Dates ================= -->
+                  <div class="mt-2"
+                       style="
+                         font-size:13px;
+                         font-weight:500;
+                         color:#4B5563;
+                       ">
+                    <field name="request_date_from"/>
+                    <span class="mx-1">→</span>
+                    <field name="request_date_to"/>
+                  </div>
+
+                  <!-- ================= Reason ================= -->
+                  <div class="mt-2"
+                       style="
+                         font-size:13px;
+                         color:#6B7280;
+                         font-style:italic;
+                       ">
+                    <t t-if="record.private_name.value">
+                      <div class="text-truncate"
+                           style="font-style:normal; font-weight:500;">
+                        <field name="private_name"/>
+                      </div>
+                    </t>
+                    <t t-else="">
+                      <span>No reason</span>
+                    </t>
+                  </div>
+
+                  <!-- ================= Bottom / Status ================= -->
+                  <div class="mt-3 d-flex justify-content-between align-items-center">
+
+                    <t t-set="st" t-value="record.state.raw_value"/>
+
+                    <!-- defaults -->
+                    <t t-set="bg" t-value="'#F1F3F4'"/>
+                    <t t-set="fg" t-value="'#5F6368'"/>
+                    <t t-set="ic" t-value="'•'"/>
+
+                    <!-- mapping -->
+                    <t t-if="st == 'validate'">
+                      <t t-set="bg" t-value="'#E6F4EA'"/>
+                      <t t-set="fg" t-value="'#137333'"/>
+                      <t t-set="ic" t-value="'✓'"/>
+                    </t>
+                    <t t-elif="st == 'validate1'">
+                      <t t-set="bg" t-value="'#FFF4E5'"/>
+                      <t t-set="fg" t-value="'#B26A00'"/>
+                      <t t-set="ic" t-value="'⏳'"/>
+                    </t>
+                    <t t-elif="st == 'unconfirmed'">
+                      <t t-set="bg" t-value="'#E8F0FE'"/>
+                      <t t-set="fg" t-value="'#1A73E8'"/>
+                      <t t-set="ic" t-value="'📋'"/>
+                    </t>
+                    <t t-elif="st == 'confirm'">
+                      <t t-set="bg" t-value="'#FFF4E5'"/>
+                      <t t-set="fg" t-value="'#B26A00'"/>
+                      <t t-set="ic" t-value="'⏳'"/>
+                    </t>
+                    <t t-elif="st == 'refuse'">
+                      <t t-set="bg" t-value="'#FDECEA'"/>
+                      <t t-set="fg" t-value="'#B3261E'"/>
+                      <t t-set="ic" t-value="'✕'"/>
+                    </t>
+
+                    <!-- Status badge -->
+                    <div class="px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1"
+                         t-attf-style="
+                           font-size:12px;
+                           font-weight:600;
+                           background:#{bg} !important;
+                           color:#{fg} !important;
+                         ">
+                      <span aria-hidden="true"><t t-esc="ic"/></span>
+                      <span><field name="state"/></span>
+                    </div>
+
+                    <!-- Footer -->
+                    <span style="
+                          font-size:12px;
+                          font-weight:500;
+                          color:#6B7280;
+                        ">
+                      My Time Off
+                    </span>
+
+                  </div>
+
+                </div>
+
+              </t>
+            </templates>
+
+          </kanban>
+        </xpath>
+
+      </field>
+    </record>
+
+  </data>
+</odoo>

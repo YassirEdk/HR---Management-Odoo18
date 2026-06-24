@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add a "Shifts" tab (up to 5) to the department type form -->
+    <record id="view_hr_department_type_form_shifts" model="ir.ui.view">
+        <field name="name">hr.department.type.form.shifts</field>
+        <field name="model">hr.department.type</field>
+        <field name="inherit_id" ref="employee.view_hr_department_type_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <notebook>
+                    <page string="Shifts">
+                        <field name="shift_ids">
+                            <list editable="bottom">
+                                <field name="shift_name"  string="Shift Name"/>
+                                <field name="start_time"  string="Start"       widget="float_time"/>
+                                <field name="end_time"    string="End"         widget="float_time"/>
+                                <field name="break_start" string="Break Start" widget="float_time"/>
+                                <field name="break_end"   string="Break End"   widget="float_time"/>
+                                <field name="late_tolerance_minutes" string="Late Tol (min)"/>
+                                <field name="max_extra_hours"        string="Max Extra (h)"/>
+                                <field name="department_type" column_invisible="1"/>
+                            </list>
+                        </field>
+                        <p class="text-muted oe_grey">
+                            Up to 5 shifts per department type. Each shift needs
+                            a name and its timing.
+                        </p>
+                    </page>
+                </notebook>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,18 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hr_leave_user,hr.leave.user,hr_holidays.model_hr_leave,holiday.group_holiday_user,1,1,1,0
+access_hr_leave_admin,hr.leave.admin,hr_holidays.model_hr_leave,holiday.group_holiday_admin,1,1,1,0
+access_hr_leave_hr,hr.leave.hr,hr_holidays.model_hr_leave,holiday.group_holiday_hr,1,1,1,1
+access_hr_employee_user,hr.employee.user,hr.model_hr_employee,holiday.group_holiday_user,1,0,0,0
+access_hr_employee_admin,hr.employee.admin,hr.model_hr_employee,holiday.group_holiday_admin,1,1,0,0
+access_hr_employee_hr,hr.employee.hr,hr.model_hr_employee,holiday.group_holiday_hr,1,1,1,1
+access_hr_leave_type_user,hr.leave.type.user,hr_holidays.model_hr_leave_type,holiday.group_holiday_user,1,0,0,0
+access_hr_leave_type_admin,hr.leave.type.admin,hr_holidays.model_hr_leave_type,holiday.group_holiday_admin,1,1,0,0
+access_hr_leave_type_hr,hr.leave.type.hr,hr_holidays.model_hr_leave_type,holiday.group_holiday_hr,1,1,1,1
+access_total_solde_conge_wizard_hr,total.solde.conge.wizard.hr,model_total_solde_conge_wizard,holiday.group_holiday_hr,1,1,1,1
+access_total_solde_conge_wizard,total.solde.conge.wizard,model_total_solde_conge_wizard,base.group_user,1,0,0,0
+access_hr_solde_expiry_alert,hr.solde.expiry.alert,model_hr_solde_expiry_alert,holiday.group_holiday_hr,1,1,1,1
+access_hr_public_holiday_hr,hr.public.holiday HR,model_hr_public_holiday,holiday.group_holiday_hr,1,1,1,1
+access_hr_public_holiday_user,hr.public.holiday User,model_hr_public_holiday,base.group_user,1,0,0,0
+access_total_solde_conge_wizard_hr,total.solde.conge.wizard.hr,model_total_solde_conge_wizard,holiday.group_holiday_hr,1,1,1,1
+access_total_solde_conge_wizard,total.solde.conge.wizard,model_total_solde_conge_wizard,base.group_user,1,0,0,0
+access_hr_leave_holiday_warning_wizard,hr.leave.holiday.warning.wizard,model_hr_leave_holiday_warning_wizard,holiday.group_holiday_user,1,1,1,1

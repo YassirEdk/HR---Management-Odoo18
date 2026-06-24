@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══════════════════════════════════════════════════════
+         CRON 1: Sync all devices every 30 minutes
+    ══════════════════════════════════════════════════════════ -->
+    <record id="cron_sync_all_devices" model="ir.cron">
+        <field name="name">Attendance: Sync All Devices</field>
+        <field name="model_id" ref="attendance_devices.model_attendance_device"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_sync_devices()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+        <field name="priority">5</field>
+    </record>
+
+</odoo>

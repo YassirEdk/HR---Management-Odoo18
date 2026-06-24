@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Default attendance list to today + group by Department/Shift.
+         department_shift collapses to just the department name when that
+         department has a single shift (records show directly), and becomes
+         "<Dept> <Shift>" when it has several. -->
+    <record id="hr_attendance.hr_attendance_action" model="ir.actions.act_window">
+        <field name="context">
+            {
+                'create': False,
+                'search_default_today': 1,
+                'search_default_group_dept_shift': 1,
+                'search_default_group_status': 2
+            }
+        </field>
+    </record>
+
+    <!-- Rename native Attendances menu to Aujourd'hui -->
+    <record id="hr_attendance.menu_hr_attendance_view_attendances" model="ir.ui.menu">
+        <field name="name">Aujourd'hui</field>
+    </record>
+
+    <!-- Hide Kiosk Mode menu -->
+    <record id="hr_attendance.menu_action_open_form" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+</odoo>

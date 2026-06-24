@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Hide My Allocations -->
+    <record id="hr_holidays.menu_open_allocation" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- Hide Management Menu -->
+    <record id="hr_holidays.menu_hr_holidays_management" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+</odoo>
