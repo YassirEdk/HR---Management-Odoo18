@@ -53,6 +53,6 @@
         parent="hr.menu_hr_root"
         action="action_hr_department_type"
         sequence="90"
-        groups="hr.group_hr_manager"/>
+        groups="hr.group_hr_manager,employee.group_employee_hr"/>
 
 </odoo>

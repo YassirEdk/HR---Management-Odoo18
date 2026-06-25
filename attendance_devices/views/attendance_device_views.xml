@@ -14,13 +14,14 @@
                             class="btn-primary"/>
                 </header>
                 <sheet>
+                    <field name="is_device_admin" invisible="1"/>
                     <group string="Connection">
-                        <field name="name"/>
-                        <field name="ip_address"/>
-                        <field name="port"/>
-                        <field name="location"/>
-                        <field name="timezone"/>
-                        <field name="department_type"/>
+                        <field name="name" readonly="not is_device_admin"/>
+                        <field name="ip_address" readonly="not is_device_admin"/>
+                        <field name="port" readonly="not is_device_admin"/>
+                        <field name="location" readonly="not is_device_admin"/>
+                        <field name="timezone" readonly="not is_device_admin"/>
+                        <field name="department_type" readonly="not is_device_admin"/>
                         <field name="last_sync" readonly="1"/>
                     </group>
                     <group string="Shift Settings">
@@ -107,6 +108,7 @@ action = model.action_sync_all_devices()
               name="Devices"
               parent="hr_attendance.menu_hr_attendance_root"
               action="action_attendance_device"
-              sequence="15"/>
+              sequence="15"
+              groups="employee.group_employee_hr,base.group_system"/>
 
 </odoo>

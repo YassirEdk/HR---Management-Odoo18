@@ -218,6 +218,19 @@ class AttendanceDevice(models.Model):
         help='Only sync employees from this department. Use "All" to sync everyone.',
     )
 
+    # Technical flag used by the form view: only admins (Settings access) may
+    # edit the connection fields. HR users edit only the absence/shift settings.
+    is_device_admin = fields.Boolean(
+        string='Can Edit All Device Fields',
+        compute='_compute_is_device_admin',
+    )
+
+    @api.depends_context('uid')
+    def _compute_is_device_admin(self):
+        is_admin = self.env.user.has_group('base.group_system')
+        for rec in self:
+            rec.is_device_admin = is_admin
+
     # ---------------------------------------------------------
     # DEVICE COMMUNICATION
     # ---------------------------------------------------------
