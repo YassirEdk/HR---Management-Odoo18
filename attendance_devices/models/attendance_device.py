@@ -222,9 +222,19 @@ class AttendanceDevice(models.Model):
     # DEVICE COMMUNICATION
     # ---------------------------------------------------------
     def get_data_from_device(self):
+        """Fetch attendance logs from the device.
+
+        Returns:
+            list  — the records on success (may be empty if the device has none)
+            None  — the read FAILED (device unreachable, timeout, partial read).
+
+        The None vs [] distinction matters: callers must NOT advance last_sync
+        on a failed read, otherwise punches made during the outage are filtered
+        out as "older than last_sync" and lost forever.
+        """
         self.ensure_one()
         if not self.ip_address or not self.port:
-            return []
+            return None
 
         TZ      = ZoneInfo(self.timezone)
         zk      = ZK(self.ip_address, port=self.port, timeout=10, ommit_ping=True)
@@ -236,15 +246,17 @@ class AttendanceDevice(models.Model):
             conn = zk.connect()
             conn.disable_device()
             for a in (conn.get_attendance() or []):
-                badge = str(a.user_id)
-                ts    = getattr(a, "timestamp", None)
-                if not badge or not ts:
+                user_id = getattr(a, "user_id", None)
+                ts      = getattr(a, "timestamp", None)
+                if user_id is None or ts is None:
                     continue
+                badge = str(user_id)
                 ts_local = ts.replace(tzinfo=TZ) if ts.tzinfo is None else ts.astimezone(TZ)
                 records.append({"badge_id": badge, "timestamp": ts_local})
             _logger.info("[ZK] %s records fetched", len(records))
         except Exception as e:
             _logger.exception("[ZK] Connection error: %s", e)
+            return None
         finally:
             if conn:
                 try:
@@ -271,6 +283,15 @@ class AttendanceDevice(models.Model):
         cutoff        = self.night_shift_cutoff or 0
 
         records = self.get_data_from_device()
+
+        # Failed read (device unreachable / timeout / partial). Do NOT advance
+        # last_sync — otherwise punches made during the outage become "older than
+        # last_sync" on the next run and are silently dropped.
+        if records is None:
+            _logger.warning("[SYNC] Device read failed for %s — aborting, last_sync unchanged.", self.name)
+            if not cron:
+                return self._open_result_wizard(["⚠️ Could not read from device — sync aborted, no data changed."])
+            return False
 
         # If no last_sync, set it to now and skip — don't pull historical data
         if not self.last_sync:
