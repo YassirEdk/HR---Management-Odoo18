@@ -127,6 +127,18 @@ class HrAttendance(models.Model):
         return res
 
     def init(self):
+        # Composite index for the sync engine's hot query
+        # (WHERE employee_id = ? AND check_in >= ? AND check_in < ?), run on
+        # every device sync. Without it these range scans get slow as the table
+        # grows past tens of thousands of rows.
+        try:
+            self.env.cr.execute(
+                "CREATE INDEX IF NOT EXISTS hr_attendance_employee_checkin_idx "
+                "ON hr_attendance (employee_id, check_in)"
+            )
+        except Exception:
+            pass
+
         # Recompute shift_type and department_shift on every upgrade
         try:
             self.env.cr.execute(

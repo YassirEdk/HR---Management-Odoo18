@@ -933,7 +933,20 @@ class AttendanceDevice(models.Model):
     # ---------------------------------------------------------
     def action_sync_device(self):
         self.ensure_one()
-        return self._sync_device_attendance(cron=False)
+        # Take the SAME advisory lock the cron / "Sync All" use, so a manual
+        # single-device sync can never run concurrently with them. Without this
+        # an admin clicking Sync while the cron is running could insert a second
+        # attendance row for the same employee/day (there is no DB uniqueness
+        # guarantee on shift-day).
+        self.env.cr.execute("SELECT pg_try_advisory_lock(987654321)")
+        if not self.env.cr.fetchone()[0]:
+            return self._open_result_wizard(
+                ["⚠️ A sync is already running — please wait a moment and try again."]
+            )
+        try:
+            return self._sync_device_attendance(cron=False)
+        finally:
+            self.env.cr.execute("SELECT pg_advisory_unlock(987654321)")
 
     # ---------------------------------------------------------
     # BUTTON: Sync ALL devices
@@ -1050,11 +1063,18 @@ class AttendanceDevice(models.Model):
         if not device.exists():
             _logger.warning("[CRON] Device ID %s not found.", device_id)
             return
+        # Serialize against the all-device cron / manual sync via the shared lock.
+        self.env.cr.execute("SELECT pg_try_advisory_lock(987654321)")
+        if not self.env.cr.fetchone()[0]:
+            _logger.info("[CRON] Sync already running — skipping device %s", device_id)
+            return
         try:
             with self.env.cr.savepoint():
                 device._sync_device_attendance(cron=True)
         except Exception:
             _logger.exception("[CRON] Sync failed for %s", device.name)
+        finally:
+            self.env.cr.execute("SELECT pg_advisory_unlock(987654321)")
 
     # ---------------------------------------------------------
     # RESULT WIZARD
