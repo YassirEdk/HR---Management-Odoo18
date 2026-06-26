@@ -11,8 +11,15 @@ _logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────
 #  DAY GROUPING HELPER
 # ─────────────────────────────────────────────────────────────
-def shift_date_of(ts: datetime, cutoff_hour: int) -> date:
-    if cutoff_hour and ts.hour < cutoff_hour:
+def cutoff_time(cutoff_hours: float) -> time:
+    """Convert a float cutoff in hours (e.g. 2.5 == 02:30) into a time."""
+    h = int(cutoff_hours)
+    m = int(round((cutoff_hours - h) * 60))
+    return time(h, m, 0)
+
+
+def shift_date_of(ts: datetime, cutoff_hours: float) -> date:
+    if cutoff_hours and (ts.hour + ts.minute / 60) < cutoff_hours:
         return (ts - timedelta(days=1)).date()
     return ts.date()
 
@@ -188,13 +195,14 @@ class AttendanceDevice(models.Model):
     location           = fields.Char(string='Location')
     last_sync          = fields.Datetime(string='Last Sync', readonly=True)
     timezone           = fields.Char(string='Timezone', default='Africa/Casablanca')
-    night_shift_cutoff = fields.Integer(
-        string='Night Shift Cutoff Hour',
-        default=6,
+    night_shift_cutoff = fields.Float(
+        string='Night Shift Cutoff',
+        default=6.0,
         help=(
-            'Timestamps with hour < this value are assigned to the PREVIOUS day.\n'
-            'Example: cutoff=6 means 02:00 AM on Mar 4 is treated as Mar 3.\n'
-            'Set to 0 to disable.'
+            'Timestamps earlier than this time of day are assigned to the PREVIOUS day.\n'
+            'Enter as 24h time, e.g. 02:00, 03:00, 23:00.\n'
+            'Example: cutoff=06:00 means 02:00 on Mar 4 is treated as Mar 3.\n'
+            'Set to 00:00 to disable.'
         )
     )
     absence_lookback_days = fields.Integer(
@@ -415,7 +423,7 @@ class AttendanceDevice(models.Model):
 
             # Delete absent records for days we have real data
             for sday in by_shift_day:
-                window_start = datetime.combine(sday, time(cutoff, 0, 0))
+                window_start = datetime.combine(sday, cutoff_time(cutoff))
                 window_end   = window_start + timedelta(hours=24)
                 self.env.cr.execute(
                     """
@@ -435,7 +443,7 @@ class AttendanceDevice(models.Model):
             for sday, day_ts in sorted(by_shift_day.items()):
                 all_ts = sorted(day_ts)
 
-                window_start = datetime.combine(sday, time(cutoff, 0, 0))
+                window_start = datetime.combine(sday, cutoff_time(cutoff))
                 window_end   = window_start + timedelta(hours=24)
 
                 self.env.cr.execute(
@@ -760,7 +768,7 @@ class AttendanceDevice(models.Model):
             return set()
         emp_by_badge = {e.badge_id: e for e in employees}
 
-        window_start = datetime.combine(today_sday, time(cutoff, 0, 0))
+        window_start = datetime.combine(today_sday, cutoff_time(cutoff))
         window_end   = window_start + timedelta(hours=24)
 
         # One query for every employee's real (non-absent) record today.
@@ -1022,6 +1030,7 @@ class AttendanceDevice(models.Model):
                     %s, %s, %s, %s,
                     %s, %s,
                     NOW(), NOW())
+            ON CONFLICT (employee_id, check_in) WHERE is_absent DO NOTHING
             """,
             [(emp_id, chk, status,
               emp_dept.get(emp_id, ''),

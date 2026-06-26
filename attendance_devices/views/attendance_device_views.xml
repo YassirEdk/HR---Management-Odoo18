@@ -22,10 +22,10 @@
                         <field name="location" readonly="not is_device_admin"/>
                         <field name="timezone" readonly="not is_device_admin"/>
                         <field name="department_type" readonly="not is_device_admin"/>
-                        <field name="last_sync" readonly="1"/>
+                        <field name="last_sync" readonly="not is_device_admin"/>
                     </group>
                     <group string="Shift Settings">
-                        <field name="night_shift_cutoff"/>
+                        <field name="night_shift_cutoff" widget="float_time"/>
                     </group>
                     <group string="Absence Detection">
                         <field name="absence_lookback_days"/>
