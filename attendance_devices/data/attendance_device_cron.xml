@@ -19,9 +19,12 @@
     </record>
 
     <!-- ═══════════════════════════════════════════════════════
-         CRON 1b: Generate absent / time-off records every 30 minutes
-         (cron_sync_devices runs with generate_absences=False, so without
-          this cron absences are ONLY created on a manual "Sync All".)
+         CRON 1b: DISABLED. Absences are now generated inline by
+         cron_sync_devices (generate_absences=True), exactly like the
+         manual "Sync All" button — all under the same advisory lock.
+         The separate cron took no lock and raced the sync cron, which
+         caused duplicate/lost absent records. Kept here (inactive) so
+         the method stays available for a manual run if ever needed.
     ══════════════════════════════════════════════════════════ -->
     <record id="cron_generate_absences" model="ir.cron">
         <field name="name">Attendance: Generate Absences</field>
@@ -30,7 +33,7 @@
         <field name="code">model.cron_generate_absences()</field>
         <field name="interval_number">30</field>
         <field name="interval_type">minutes</field>
-        <field name="active" eval="True"/>
+        <field name="active" eval="False"/>
         <field name="priority">7</field>
     </record>
 

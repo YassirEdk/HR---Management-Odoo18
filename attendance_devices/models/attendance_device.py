@@ -343,7 +343,19 @@ class AttendanceDevice(models.Model):
             shift_day = shift_date_of(ts_local, cutoff)
             grouped_by_day[badge][shift_day].append(ts_utc)
 
-        if not grouped_new:
+        # ── Lightweight verification of TODAY's stored records ────────────────
+        # The main path below only (re)builds badges that have NEW punches since
+        # last_sync. A punch that was missed on an earlier cycle — with no newer
+        # punch after it — would otherwise never be re-examined. Compare each
+        # badge's stored record for the current shift-day against the device
+        # punches we ALREADY hold in memory (grouped_by_day, no extra device
+        # read) and flag only the ones that disagree, so the per-cycle cost
+        # stays tiny even at a 10-minute cadence.
+        now_local_naive = now_local.replace(tzinfo=None)
+        today_sday      = shift_date_of(now_local_naive, cutoff)
+        verify_badges   = self._verify_today_records(grouped_by_day, today_sday, cutoff)
+
+        if not grouped_new and not verify_badges:
             self.last_sync = now_utc_naive
             if generate_absences:
                 self.env.cr.execute('SELECT 1')
@@ -352,32 +364,34 @@ class AttendanceDevice(models.Model):
                 return self._open_result_wizard(["No new records since last sync."] + result)
             return True
 
-        # Only process badges that have new timestamps
-        badges_with_new = set(grouped_new.keys())
+        # Process badges with NEW punches, plus any flagged by verification.
+        badges_with_new   = set(grouped_new.keys())
+        badges_to_process = badges_with_new | verify_badges
 
-        emp_domain = [('badge_id', 'in', list(badges_with_new))]
+        emp_domain = [('badge_id', 'in', list(badges_to_process))]
         if self.department_type and self.department_type != 'all':
             emp_domain.append(('department_type', '=', self.department_type))
         employees    = Employee.search(emp_domain)
         emp_by_badge = {e.badge_id: e for e in employees}
 
-        for badge in badges_with_new:
+        for badge in badges_to_process:
             if badge not in emp_by_badge:
                 _logger.warning("[SYNC] Badge %s not linked to any employee", badge)
 
-        # For each badge with new data, find which shift-days have new timestamps
-        # and use ALL timestamps for those days (for correct break calculation)
+        # For each badge, collect ALL timestamps for the shift-days we must
+        # (re)build: days that received new punches, plus today's shift-day for
+        # any badge the verification flagged. Using ALL timestamps for a day
+        # keeps break calculation correct.
         grouped = defaultdict(list)
-        for badge in badges_with_new:
-            new_ts_list = grouped_new[badge]
-            # Find which shift-days have new data (respects night_shift_cutoff)
-            days_with_new = set()
-            for ts in new_ts_list:
+        for badge in badges_to_process:
+            days_to_build = set()
+            for ts in grouped_new.get(badge, []):
                 ts_local = ts.replace(tzinfo=UTC).astimezone(TZ).replace(tzinfo=None)
-                days_with_new.add(shift_date_of(ts_local, cutoff))
-            # Collect ALL timestamps for those shift-days
+                days_to_build.add(shift_date_of(ts_local, cutoff))
+            if badge in verify_badges:
+                days_to_build.add(today_sday)
             all_ts_for_badge = []
-            for d in days_with_new:
+            for d in days_to_build:
                 all_ts_for_badge.extend(grouped_by_day[badge].get(d, []))
             grouped[badge] = sorted(set(all_ts_for_badge))
 
@@ -715,6 +729,86 @@ class AttendanceDevice(models.Model):
         return True
 
     # ---------------------------------------------------------
+    # VERIFY: reconcile today's stored records vs device punches
+    # ---------------------------------------------------------
+    def _verify_today_records(self, grouped_by_day, today_sday, cutoff):
+        """Return the set of badges whose stored record for ``today_sday``
+        disagrees with the device punches read this cycle.
+
+        Deliberately cheap so it can run every sync (10-min cron) without
+        loading the system: ONE employee search + ONE batched SQL over today's
+        window, then an in-memory comparison. No extra device communication
+        (re-uses ``grouped_by_day``) and no per-badge queries.
+
+        A badge is flagged only when something is genuinely missing from the
+        stored record:
+          * the device has punches today but nothing was stored at all, or
+          * the device's latest punch is newer than what the record reflects
+            (a checkout / break punch that the earlier sync skipped).
+        Records that already match are left untouched.
+        """
+        # Badges with at least one punch on the current shift-day.
+        today_badges = [b for b, days in grouped_by_day.items() if days.get(today_sday)]
+        if not today_badges:
+            return set()
+
+        emp_domain = [('badge_id', 'in', today_badges)]
+        if self.department_type and self.department_type != 'all':
+            emp_domain.append(('department_type', '=', self.department_type))
+        employees = self.env['hr.employee'].search(emp_domain)
+        if not employees:
+            return set()
+        emp_by_badge = {e.badge_id: e for e in employees}
+
+        window_start = datetime.combine(today_sday, time(cutoff, 0, 0))
+        window_end   = window_start + timedelta(hours=24)
+
+        # One query for every employee's real (non-absent) record today.
+        self.env.cr.execute(
+            """
+            SELECT employee_id, check_in, check_out
+              FROM hr_attendance
+             WHERE employee_id = ANY(%s)
+               AND check_in   >= %s
+               AND check_in   <  %s
+               AND is_absent  = FALSE
+             ORDER BY check_in ASC
+            """,
+            (employees.ids, window_start, window_end)
+        )
+        stored = {}
+        for emp_id, ci, co in self.env.cr.fetchall():
+            stored.setdefault(emp_id, (ci, co))   # earliest record per employee
+
+        TOL           = timedelta(seconds=60)
+        verify_badges = set()
+        for badge in today_badges:
+            employee = emp_by_badge.get(badge)
+            if not employee:
+                continue
+            device_ts = collapse_near_duplicates(sorted(set(grouped_by_day[badge][today_sday])))
+            if not device_ts:
+                continue
+            dev_last = device_ts[-1]
+            rec      = stored.get(employee.id)
+            if rec is None:
+                # Device shows punches today but nothing was stored → skipped.
+                verify_badges.add(badge)
+                continue
+            rec_ci, rec_co = rec
+            ref_last = rec_co if (rec_co and rec_co != rec_ci) else rec_ci
+            if dev_last > ref_last + TOL:
+                # A later device punch is not reflected in the stored record.
+                verify_badges.add(badge)
+
+        if verify_badges:
+            _logger.info(
+                "[VERIFY] %s: %s record(s) out of sync for %s, reconciling: %s",
+                self.name, len(verify_badges), today_sday, sorted(verify_badges)
+            )
+        return verify_badges
+
+    # ---------------------------------------------------------
     # ABSENCE GENERATION
     # ---------------------------------------------------------
     def _generate_absences(self, result):
@@ -1019,7 +1113,9 @@ class AttendanceDevice(models.Model):
             for device in self.search([]):
                 try:
                     with self.env.cr.savepoint():
-                        device._sync_device_attendance(cron=True, generate_absences=False)
+                        # Same process as the manual "Sync All" button: pull punches
+                        # AND generate absences in one pass, under the advisory lock.
+                        device._sync_device_attendance(cron=True, generate_absences=True)
                 except Exception:
                     _logger.exception("[CRON] Sync failed for %s", device.name)
         finally:
