@@ -97,33 +97,41 @@ class AttendanceOverview(models.TransientModel):
             rec.aeroport_absent  = count(records, 'aeroport', 'absent')
             rec.aeroport_autres  = count(records, 'aeroport', 'autres')
 
-    def _attendance_action(self, date_str, extra_domain=None):
+    def _attendance_action(self, date_str, extra_domain=None, group_by_shift=False):
         domain = [
             ('check_in', '>=', date_str + ' 00:00:00'),
             ('check_in', '<=', date_str + ' 23:59:59'),
         ]
         if extra_domain:
             domain += extra_domain
+        context = {
+            'create':                       False,
+            'search_default_group_status':  2,
+        }
+        # "Voir toutes les presences" mirrors the Aujourd'hui / date-wizard
+        # grouping (Department / Shift); drilldown buttons keep dept type.
+        if group_by_shift:
+            context['search_default_group_dept_shift'] = 1
+        else:
+            context['search_default_group_dept_type'] = 1
         return {
-            'type':      'ir.actions.act_window',
-            'name':      f'Attendances — {date_str}',
-            'res_model': 'hr.attendance',
-            'view_mode': 'list,form',
-            'views':     [[False, 'list'], [False, 'form']],
-            'domain':    domain,
-            'context': {
-                'create':                          False,
-                'search_default_group_dept_type':  1,
-                'search_default_group_status':     2,
-            },
-            'target': 'current',
+            'type':           'ir.actions.act_window',
+            'name':           f'Attendances — {date_str}',
+            'res_model':      'hr.attendance',
+            'view_mode':      'list,form',
+            'views':          [[False, 'list'], [False, 'form']],
+            'search_view_id': [self.env.ref('hr_attendance.hr_attendance_view_filter').id, 'search'],
+            'domain':         domain,
+            'context':        context,
+            'target':         'current',
         }
 
     def action_pick_date(self):
         self.ensure_one()
         if not self.date:
             return
-        return self._attendance_action(self.date.strftime('%Y-%m-%d'))
+        return self._attendance_action(self.date.strftime('%Y-%m-%d'),
+                                       group_by_shift=True)
 
     def action_view_present(self):
         self.ensure_one()

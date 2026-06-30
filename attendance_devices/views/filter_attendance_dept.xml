@@ -9,6 +9,11 @@
         <field name="model">hr.attendance</field>
         <field name="inherit_id" ref="hr_attendance.view_attendance_tree"/>
         <field name="arch" type="xml">
+            <!-- Paint the whole row red for absent records -->
+            <xpath expr="//list" position="attributes">
+                <attribute name="decoration-danger">is_absent</attribute>
+            </xpath>
+
             <xpath expr="//list" position="inside">
                 <field name="is_absent" column_invisible="1"/>
                 <field
