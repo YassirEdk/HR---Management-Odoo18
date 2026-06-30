@@ -316,10 +316,15 @@ class HrAttendance(models.Model):
         for att in self:
             att.display_name = self._build_attendance_name(att)
 
-    @api.depends('check_in', 'check_out', 'break_duration', 'worked_hours')
+    @api.depends('check_in', 'check_out', 'break_duration', 'worked_hours', 'is_absent')
     def _compute_net_worked_hours(self):
         for att in self:
             if not att.check_in:
+                att.net_worked_hours = 0.0
+                continue
+            # Absent / time-off placeholders span shift-start → shift-end but the
+            # employee worked nothing. Never count that as worked hours.
+            if att.is_absent:
                 att.net_worked_hours = 0.0
                 continue
             if not att.check_out:

@@ -7,6 +7,21 @@
         <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
         <field name="arch" type="xml">
 
+            <!-- Absent rows: the check_in time is a placeholder, show DATE only -->
+            <xpath expr="//field[@name='check_in']" position="before">
+                <field name="is_absent" invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='check_in']" position="attributes">
+                <attribute name="invisible">is_absent</attribute>
+            </xpath>
+            <xpath expr="//field[@name='check_in']" position="after">
+                <field name="check_in"
+                       string="Date"
+                       widget="date"
+                       invisible="not is_absent"
+                       readonly="1"/>
+            </xpath>
+
             <!-- Add Break fields after check_out -->
             <xpath expr="//field[@name='check_out']" position="after">
                 <field name="break_start"
