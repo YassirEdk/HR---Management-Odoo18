@@ -35,6 +35,21 @@
                     decoration-muted="checkin_status == 'autres'"/>
             </xpath>
 
+            <!-- Show dash for absent rows: hide native datetime columns,
+                 render the display labels in their place -->
+            <xpath expr="//field[@name='check_in']" position="after">
+                <field name="check_in_display" string="Check In"/>
+            </xpath>
+            <xpath expr="//field[@name='check_out']" position="after">
+                <field name="check_out_display" string="Check Out"/>
+            </xpath>
+            <xpath expr="//field[@name='check_in']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='check_out']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+
             <!-- Hide all native columns we don't want -->
             <xpath expr="//field[@name='worked_hours']" position="attributes">
                 <attribute name="column_invisible">1</attribute>

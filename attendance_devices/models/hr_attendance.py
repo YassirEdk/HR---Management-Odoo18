@@ -21,6 +21,33 @@ class HrAttendance(models.Model):
         help='True when auto-generated because the employee had no check-in that day.',
     )
 
+    # Display-only labels: show a dash for absent rows instead of the
+    # placeholder shift-start/shift-end timestamps.
+    check_in_display = fields.Char(
+        string='Check In',
+        compute='_compute_check_inout_display',
+    )
+    check_out_display = fields.Char(
+        string='Check Out',
+        compute='_compute_check_inout_display',
+    )
+
+    @api.depends('check_in', 'check_out', 'is_absent')
+    def _compute_check_inout_display(self):
+        TZ  = ZoneInfo("Africa/Casablanca")
+        UTC = ZoneInfo("UTC")
+
+        def fmt(dt):
+            return dt.replace(tzinfo=UTC).astimezone(TZ).strftime('%m/%d/%Y %H:%M:%S')
+
+        for att in self:
+            if att.is_absent:
+                att.check_in_display  = '—'
+                att.check_out_display = '—'
+                continue
+            att.check_in_display  = fmt(att.check_in) if att.check_in else ''
+            att.check_out_display = fmt(att.check_out) if att.check_out else ''
+
     department_type = fields.Selection(
         related='employee_id.department_type',
         string='Department Type',
@@ -417,37 +444,13 @@ class HrAttendance(models.Model):
                 else:
                     _logger.info("[CLOSE] emp=%s: id=%s same/close timestamp — leaving open", employee_id, rec_id)
             else:
-                # Stale record from previous day — close at shift end time
-                emp_obj = self.env['hr.employee'].browse(employee_id)
-                config  = emp_obj.shift_config_id if emp_obj else False
-                if config:
-                    from zoneinfo import ZoneInfo as _ZI
-                    from datetime import datetime as _dt
-                    _TZ  = _ZI("Africa/Casablanca")
-                    _UTC = _ZI("UTC")
-                    ci_local   = rec_check_in.replace(tzinfo=_UTC).astimezone(_TZ)
-                    ci_day     = ci_local.date()
-                    end_min    = int(config.end_time * 60)
-                    end_h      = end_min // 60
-                    end_m      = end_min % 60
-                    shift_end_local = _dt.combine(
-                        ci_day,
-                        __import__('datetime').time(end_h, end_m, 0),
-                        tzinfo=_TZ,
-                    )
-                    # Night shift ends the calendar day after check-in
-                    if config.end_time < config.start_time:
-                        shift_end_local += timedelta(days=1)
-                    shift_end  = shift_end_local.astimezone(_UTC).replace(tzinfo=None)
-                    cr.execute(
-                        "UPDATE hr_attendance SET check_out = %s, missing_checkout = TRUE, checkin_status = 'autres' WHERE id = %s",
-                        (shift_end, rec_id)
-                    )
-                else:
-                    cr.execute(
-                        "UPDATE hr_attendance SET check_out = check_in, missing_checkout = TRUE, checkin_status = 'autres' WHERE id = %s",
-                        (rec_id,)
-                    )
+                # Stale record from previous day — no checkout punch ever came.
+                # Close at check-in (0 hours) and flag missing, same as the cron.
+                # (check_out == check_in makes checkin_status compute to 'autres'.)
+                cr.execute(
+                    "UPDATE hr_attendance SET check_out = check_in, missing_checkout = TRUE WHERE id = %s",
+                    (rec_id,)
+                )
                 _logger.warning("[CLOSE] emp=%s: stale id=%s flagged missing", employee_id, rec_id)
 
         self.invalidate_model()
