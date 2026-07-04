@@ -51,4 +51,31 @@
         <field name="priority">9</field>
     </record>
 
+    <!-- ═══════════════════════════════════════════════════════
+         CRON 1d: Refresh time-based statuses (every 15 min)
+         Absence après-midi / Retard de pause depend on elapsed time
+         but have no @api.depends trigger — recompute today's real
+         records so they appear as soon as the grace elapses.
+    ══════════════════════════════════════════════════════════ -->
+    <record id="cron_refresh_statuses" model="ir.cron">
+        <field name="name">Attendance: Refresh Statuses</field>
+        <field name="model_id" ref="hr_attendance.model_hr_attendance"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_refresh_statuses()</field>
+        <field name="interval_number">15</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+        <field name="priority">8</field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════
+         Disable Odoo's native absence detection cron. This module
+         fully owns attendance-absence logic; the native 4h cron only
+         adds noise and can conflict. Done as a data record so it
+         stays disabled across upgrades.
+    ══════════════════════════════════════════════════════════ -->
+    <record id="hr_attendance.hr_attendance_absence_cron" model="ir.cron">
+        <field name="active" eval="False"/>
+    </record>
+
 </odoo>

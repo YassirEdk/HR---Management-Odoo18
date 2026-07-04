@@ -109,6 +109,6 @@ action = model.action_sync_all_devices()
               parent="hr_attendance.menu_hr_attendance_root"
               action="action_attendance_device"
               sequence="15"
-              groups="employee.group_employee_hr,base.group_system"/>
+              groups="attendance_devices.group_attendance_device_hr,attendance_devices.group_attendance_device_admin,employee.group_employee_hr,base.group_system"/>
 
 </odoo>

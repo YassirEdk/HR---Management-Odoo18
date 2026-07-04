@@ -16,10 +16,10 @@
             </xpath>
             <xpath expr="//field[@name='check_in']" position="after">
                 <field name="check_in"
-                       string="Date"
-                       widget="date"
+                       string="Check In"
+                       widget="datetime"
                        invisible="not is_absent"
-                       readonly="1"/>
+                       readonly="0"/>
             </xpath>
 
             <!-- Add Break fields after check_out -->
@@ -48,6 +48,15 @@
                        string="Net Worked Hours"
                        widget="float_time"
                        readonly="1"/>
+                <field name="status_badge_ids"
+                       string="Statuses"
+                       widget="many2many_tags"
+                       options="{'color_field': 'color'}"
+                       readonly="1"/>
+                <field name="has_absence" invisible="1"/>
+                <field name="is_resolved"
+                       string="Résolut"
+                       invisible="not has_absence"/>
             </xpath>
 
         </field>

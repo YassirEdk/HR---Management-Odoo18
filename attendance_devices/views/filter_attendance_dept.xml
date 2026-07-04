@@ -25,14 +25,12 @@
                     string="Break (h)"
                     widget="float_time"/>
                 <field
-                    name="checkin_status"
+                    name="status_badge_ids"
                     string="Status"
-                    widget="badge"
-                    decoration-success="checkin_status == 'on_time'"
-                    decoration-warning="checkin_status == 'late'"
-                    decoration-danger="checkin_status == 'absent'"
-                    decoration-info="checkin_status == 'timeoff'"
-                    decoration-muted="checkin_status == 'autres'"/>
+                    widget="many2many_tags"
+                    options="{'color_field': 'color'}"/>
+                <field name="status_ids" column_invisible="1"/>
+                <field name="status_bucket_ids" column_invisible="1"/>
             </xpath>
 
             <!-- Show dash for absent rows: hide native datetime columns,
@@ -141,25 +139,41 @@
                     domain="[('department_type', '=', 'warehouse'), ('shift_type', '=', 'night')]"/>
                 <separator/>
                 <filter
-                    string="In Time"
+                    string="À l'heure"
                     name="filter_on_time"
-                    domain="[('checkin_status', '=', 'on_time')]"/>
+                    domain="[('status_bucket_ids.code', '=', 'on_time')]"/>
                 <filter
-                    string="Late"
+                    string="Retard"
                     name="filter_late"
-                    domain="[('checkin_status', '=', 'late')]"/>
+                    domain="[('status_bucket_ids.code', '=', 'late')]"/>
                 <filter
-                    string="Absent"
+                    string="Absence"
                     name="filter_absent"
-                    domain="[('checkin_status', '=', 'absent')]"/>
+                    domain="[('status_bucket_ids.code', '=', 'absence')]"/>
+                <filter
+                    string="Absence matinale"
+                    name="filter_absence_morning"
+                    domain="[('status_ids.code', '=', 'absence_morning')]"/>
+                <filter
+                    string="Absence après-midi"
+                    name="filter_absence_afternoon"
+                    domain="[('status_ids.code', '=', 'absence_afternoon')]"/>
+                <filter
+                    string="Absence toute la journée"
+                    name="filter_absence_full"
+                    domain="[('status_ids.code', '=', 'absence_full')]"/>
+                <filter
+                    string="Congé"
+                    name="filter_timeoff"
+                    domain="[('status_bucket_ids.code', '=', 'timeoff')]"/>
                 <filter
                     string="Missing Checkout"
                     name="filter_autres"
-                    domain="[('checkin_status', '=', 'autres')]"/>
+                    domain="[('status_bucket_ids.code', '=', 'missing_checkout')]"/>
                 <filter
-                    string="Time Off"
-                    name="filter_timeoff"
-                    domain="[('checkin_status', '=', 'timeoff')]"/>
+                    string="Résolut"
+                    name="filter_resolved"
+                    domain="[('status_ids.code', '=', 'resolved')]"/>
             </xpath>
 
             <!-- Group By additions AFTER existing departement group -->
@@ -183,7 +197,7 @@
                 <filter
                     string="Status"
                     name="group_status"
-                    context="{'group_by': 'checkin_status'}"/>
+                    context="{'group_by': 'status_ids'}"/>
             </xpath>
 
         </field>

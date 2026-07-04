@@ -6,7 +6,9 @@
     'summary': 'Manage attendance devices',
     'depends': ['hr', 'base', 'hr_attendance', 'employee'],
     'data': [
+        "security/attendance_device_groups.xml",
         "security/ir.model.access.csv",
+        "data/attendance_status_data.xml",
         "views/attendance_device_views.xml",
         "data/attendance_device_cron.xml",
         "views/filter_attendance.xml",
@@ -22,4 +24,5 @@
     ],
     'application': False,
     'license': 'LGPL-3',
+    'post_init_hook': '_recompute_statuses_post_init',
 }

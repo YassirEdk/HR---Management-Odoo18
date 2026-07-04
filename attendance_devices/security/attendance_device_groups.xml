@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Application category shown in Settings > Users -->
+    <record id="module_category_attendance_devices" model="ir.module.category">
+        <field name="name">Attendance Devices</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <!-- HR: can open Devices and edit shift/absence settings,
+         but NOT the connection fields (they stay read-only). -->
+    <record id="group_attendance_device_hr" model="res.groups">
+        <field name="name">HR</field>
+        <field name="category_id" ref="module_category_attendance_devices"/>
+    </record>
+
+    <!-- Administrator: full edit on every device field, incl. connection. -->
+    <record id="group_attendance_device_admin" model="res.groups">
+        <field name="name">Administrator</field>
+        <field name="category_id" ref="module_category_attendance_devices"/>
+        <field name="implied_ids" eval="[(4, ref('group_attendance_device_hr'))]"/>
+    </record>
+
+</odoo>

@@ -65,6 +65,20 @@
                         </group>
                     </group>
 
+                    <group string="Samedi">
+                        <field name="works_saturday"/>
+                        <field name="saturday_start_time" widget="float_time" string="Début samedi"
+                               invisible="not works_saturday" required="works_saturday"/>
+                        <field name="saturday_end_time"   widget="float_time" string="Fin samedi"
+                               invisible="not works_saturday" required="works_saturday"/>
+                    </group>
+
+                    <group string="Statut — seuils (heures)">
+                        <field name="absence_morning_delay"      widget="float_time" string="Absence matinale après (h)"/>
+                        <field name="absence_afternoon_grace"    widget="float_time" string="Absence après-midi grâce (h)"/>
+                        <field name="break_max_duration"          widget="float_time" string="Durée max de pause (h)"/>
+                    </group>
+
                     <group string="Summary (computed)">
                         <field name="break_duration" widget="float_time" readonly="1"/>
                         <field name="worked_hours"   widget="float_time" readonly="1"/>

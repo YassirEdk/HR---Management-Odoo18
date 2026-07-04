@@ -116,6 +116,56 @@ class AttendanceShiftConfig(models.Model):
              'e.g. 2.0 = close if no checkout by shift_end + 2h.',
     )
 
+    # ── Status timing thresholds (editable) ──────────────────────────────────
+    absence_morning_delay = fields.Float(
+        string='Absence Matinale After (h)',
+        default=2.5,
+        aggregator=None,
+        help='Hours after shift start: a check-in later than this is Absence matinale. '
+             'e.g. 2.5 = after start + 2h30.',
+    )
+    absence_afternoon_grace = fields.Float(
+        string='Absence Après-midi Grace (h)',
+        default=2.0,
+        aggregator=None,
+        help='If someone leaves and this many hours later the shift is still running, '
+             'it is Absence après-midi. e.g. 2.0 = 2h grace.',
+    )
+    break_max_duration = fields.Float(
+        string='Break Max Duration (h)',
+        default=1.25,
+        aggregator=None,
+        help='Maximum allowed break length. If the break runs longer: the employee '
+             'is marked Absence après-midi when he never punches back, or Retard de '
+             'pause when he does. e.g. 1.25 = 1h15.',
+    )
+
+    # ── Saturday schedule (optional) ──────────────────────────────────────────
+    works_saturday = fields.Boolean(
+        string='Works Saturday',
+        default=False,
+        help='Tick if this shift works on Saturdays. When set, Saturday uses the '
+             'start/end times below instead of the weekday ones.',
+    )
+    saturday_start_time = fields.Float(
+        string='Saturday Start',
+        default=8.5,
+        aggregator=None,
+    )
+    saturday_end_time = fields.Float(
+        string='Saturday End',
+        default=13.0,
+        aggregator=None,
+    )
+
+    def effective_times(self, day):
+        """Return (start_time, end_time) for the given date, using the Saturday
+        schedule when it is a Saturday and this shift works Saturdays."""
+        self.ensure_one()
+        if day and day.weekday() == 5 and self.works_saturday:
+            return self.saturday_start_time, self.saturday_end_time
+        return self.start_time, self.end_time
+
     # ── Clock display fields ─────────────────────────────────────────────────
     start_time_display  = fields.Char(string='Start (clock)',        compute='_compute_display_times', store=False)
     end_time_display    = fields.Char(string='End (clock)',          compute='_compute_display_times', store=False)

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="0">
+
+    <!-- ── 4 view buckets (list column / filters / group-by) ── -->
+    <record id="bucket_on_time" model="attendance.status.bucket">
+        <field name="name">À l'heure</field>
+        <field name="code">on_time</field>
+        <field name="color">10</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="bucket_late" model="attendance.status.bucket">
+        <field name="name">Retard</field>
+        <field name="code">late</field>
+        <field name="color">2</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="bucket_late_break" model="attendance.status.bucket">
+        <field name="name">Retard de pause</field>
+        <field name="code">late_break</field>
+        <field name="color">2</field>
+        <field name="sequence">25</field>
+    </record>
+    <record id="bucket_absence" model="attendance.status.bucket">
+        <field name="name">Absence</field>
+        <field name="code">absence</field>
+        <field name="color">1</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="bucket_timeoff" model="attendance.status.bucket">
+        <field name="name">Congé</field>
+        <field name="code">timeoff</field>
+        <field name="color">4</field>
+        <field name="sequence">35</field>
+    </record>
+    <record id="bucket_missing_checkout" model="attendance.status.bucket">
+        <field name="name">Missing Checkout</field>
+        <field name="code">missing_checkout</field>
+        <field name="color">3</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="bucket_resolved" model="attendance.status.bucket">
+        <field name="name">Résolut</field>
+        <field name="code">resolved</field>
+        <field name="color">10</field>
+        <field name="sequence">45</field>
+    </record>
+
+    <!-- ── 7 detailed statuses ── -->
+    <record id="status_on_time" model="attendance.status">
+        <field name="name">À l'heure</field>
+        <field name="code">on_time</field>
+        <field name="color">10</field>
+        <field name="sequence">10</field>
+        <field name="bucket_id" ref="bucket_on_time"/>
+    </record>
+    <record id="status_late" model="attendance.status">
+        <field name="name">Retard</field>
+        <field name="code">late</field>
+        <field name="color">2</field>
+        <field name="sequence">20</field>
+        <field name="bucket_id" ref="bucket_late"/>
+    </record>
+    <record id="status_late_break" model="attendance.status">
+        <field name="name">Retard de pause</field>
+        <field name="code">late_break</field>
+        <field name="color">2</field>
+        <field name="sequence">25</field>
+        <field name="bucket_id" ref="bucket_late_break"/>
+    </record>
+    <record id="status_absence_morning" model="attendance.status">
+        <field name="name">Absence matinale</field>
+        <field name="code">absence_morning</field>
+        <field name="color">1</field>
+        <field name="sequence">30</field>
+        <field name="bucket_id" ref="bucket_absence"/>
+    </record>
+    <record id="status_absence_afternoon" model="attendance.status">
+        <field name="name">Absence après-midi</field>
+        <field name="code">absence_afternoon</field>
+        <field name="color">1</field>
+        <field name="sequence">40</field>
+        <field name="bucket_id" ref="bucket_absence"/>
+    </record>
+    <record id="status_absence_full" model="attendance.status">
+        <field name="name">Absence</field>
+        <field name="code">absence_full</field>
+        <field name="color">1</field>
+        <field name="sequence">50</field>
+        <field name="bucket_id" ref="bucket_absence"/>
+    </record>
+    <record id="status_timeoff" model="attendance.status">
+        <field name="name">Congé</field>
+        <field name="code">timeoff</field>
+        <field name="color">4</field>
+        <field name="sequence">55</field>
+        <field name="bucket_id" ref="bucket_timeoff"/>
+    </record>
+    <record id="status_missing_checkout" model="attendance.status">
+        <field name="name">Missing Checkout</field>
+        <field name="code">missing_checkout</field>
+        <field name="color">3</field>
+        <field name="sequence">60</field>
+        <field name="bucket_id" ref="bucket_missing_checkout"/>
+    </record>
+    <record id="status_resolved" model="attendance.status">
+        <field name="name">Résolut</field>
+        <field name="code">resolved</field>
+        <field name="color">10</field>
+        <field name="sequence">65</field>
+        <field name="bucket_id" ref="bucket_resolved"/>
+    </record>
+    <record id="status_anomalie" model="attendance.status">
+        <field name="name">Anomalie</field>
+        <field name="code">anomalie</field>
+        <field name="color">9</field>
+        <field name="sequence">70</field>
+        <!-- no bucket: internal only, not shown in the 4-bucket view -->
+    </record>
+
+</odoo>

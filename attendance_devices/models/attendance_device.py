@@ -2,10 +2,15 @@ from odoo import models, fields, api
 from zk import ZK
 from datetime import timedelta, datetime, time, date
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 import logging
 
 _logger = logging.getLogger(__name__)
+
+# Sentinel: distinguishes "caller did not prefetch" from "prefetched a failed
+# read (None)" in _sync_device_attendance(records=...).
+_UNSET = object()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -233,9 +238,14 @@ class AttendanceDevice(models.Model):
         compute='_compute_is_device_admin',
     )
 
+    # depends('name') is a harmless field dependency that forces the web client
+    # to evaluate this compute on brand-new (unsaved) records too — without it
+    # the modifier would fall back to False and lock the fields on create.
+    @api.depends('name')
     @api.depends_context('uid')
     def _compute_is_device_admin(self):
-        is_admin = self.env.user.has_group('base.group_system')
+        is_admin = self.env.user.has_group('base.group_system') \
+            or self.env.user.has_group('attendance_devices.group_attendance_device_admin')
         for rec in self:
             rec.is_device_admin = is_admin
 
@@ -256,14 +266,23 @@ class AttendanceDevice(models.Model):
         self.ensure_one()
         if not self.ip_address or not self.port:
             return None
+        return self._read_zk_punches(self.ip_address, self.port, self.timezone, self.name)
 
-        TZ      = ZoneInfo(self.timezone)
-        zk      = ZK(self.ip_address, port=self.port, timeout=10, ommit_ping=True)
+    @staticmethod
+    def _read_zk_punches(ip_address, port, timezone, name=''):
+        """Pure network read of one ZK device — NO ORM / cursor access, so it is
+        safe to run in a worker thread. Takes plain values, returns a list of
+        {badge_id, timestamp} dicts on success, or None on a failed read."""
+        if not ip_address or not port:
+            return None
+
+        TZ      = ZoneInfo(timezone)
+        zk      = ZK(ip_address, port=port, timeout=10, ommit_ping=True)
         conn    = None
         records = []
 
         try:
-            _logger.info("[ZK] Connecting to %s:%s", self.ip_address, self.port)
+            _logger.info("[ZK] Connecting to %s:%s", ip_address, port)
             conn = zk.connect()
             conn.disable_device()
             for a in (conn.get_attendance() or []):
@@ -274,9 +293,9 @@ class AttendanceDevice(models.Model):
                 badge = str(user_id)
                 ts_local = ts.replace(tzinfo=TZ) if ts.tzinfo is None else ts.astimezone(TZ)
                 records.append({"badge_id": badge, "timestamp": ts_local})
-            _logger.info("[ZK] %s records fetched", len(records))
+            _logger.info("[ZK] %s: %s records fetched", name or ip_address, len(records))
         except Exception as e:
-            _logger.exception("[ZK] Connection error: %s", e)
+            _logger.exception("[ZK] Connection error for %s: %s", name or ip_address, e)
             return None
         finally:
             if conn:
@@ -287,10 +306,36 @@ class AttendanceDevice(models.Model):
                     pass
         return records
 
+    @api.model
+    def _parallel_read_devices(self, devices):
+        """Read several devices concurrently (network-bound). Extracts plain
+        connection values in the main thread, then fans the socket reads out to
+        a thread pool — the workers never touch the ORM. Returns
+        {device_id: records_or_None}."""
+        specs = [(d.id, d.ip_address, d.port, d.timezone, d.name) for d in devices]
+        if len(specs) <= 1:
+            return {sid: self._read_zk_punches(ip, port, tz, nm)
+                    for sid, ip, port, tz, nm in specs}
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=min(len(specs), 8)) as pool:
+            futures = {
+                pool.submit(self._read_zk_punches, ip, port, tz, nm): sid
+                for sid, ip, port, tz, nm in specs
+            }
+            for fut in futures:
+                sid = futures[fut]
+                try:
+                    results[sid] = fut.result()
+                except Exception:
+                    _logger.exception("[ZK] Parallel read failed for device %s", sid)
+                    results[sid] = None
+        return results
+
     # ---------------------------------------------------------
     # CORE SYNC LOGIC
     # ---------------------------------------------------------
-    def _sync_device_attendance(self, cron=False, generate_absences=True):
+    def _sync_device_attendance(self, cron=False, generate_absences=True, records=_UNSET):
         self.ensure_one()
 
         TZ            = ZoneInfo("Africa/Casablanca")
@@ -303,15 +348,26 @@ class AttendanceDevice(models.Model):
         result        = []
         cutoff        = self.night_shift_cutoff or 0
 
-        records = self.get_data_from_device()
+        # ``records`` may be pre-fetched by the caller (parallel read). Only hit
+        # the device here when it wasn't supplied.
+        if records is _UNSET:
+            records = self.get_data_from_device()
 
         # Failed read (device unreachable / timeout / partial). Do NOT advance
         # last_sync — otherwise punches made during the outage become "older than
         # last_sync" on the next run and are silently dropped.
         if records is None:
-            _logger.warning("[SYNC] Device read failed for %s — aborting, last_sync unchanged.", self.name)
+            _logger.warning("[SYNC] Device read failed for %s — generating absences only, last_sync unchanged.", self.name)
+            # A no-show doesn't depend on the device, so still generate absences
+            # even when the read fails. We're inside the advisory lock the caller
+            # (cron / button) holds, so there's no race. last_sync stays put so
+            # punches made during the outage aren't dropped on the next run.
+            if generate_absences:
+                self._generate_absences(result)
             if not cron:
-                return self._open_result_wizard(["⚠️ Could not read from device — sync aborted, no data changed."])
+                return self._open_result_wizard(
+                    ["⚠️ Could not read from device — punches unchanged, absences generated."] + result
+                )
             return False
 
         # If no last_sync, set it to now and skip — don't pull historical data
@@ -513,30 +569,18 @@ class AttendanceDevice(models.Model):
                         span   = (check_out_ts - check_in_ts).total_seconds() / 3600.0
                         worked = max(0.0, span - brk)
 
-                    # Compute checkin_status at insert time
-                    config   = employee.shift_config_id
-                    c_status = 'autres'
-                    if config and check_in_ts:
-                        _TZ  = ZoneInfo("Africa/Casablanca")
-                        _UTC = ZoneInfo("UTC")
-                        ci_local = check_in_ts.replace(tzinfo=_UTC).astimezone(_TZ)
-                        ci_min   = ci_local.hour * 60 + ci_local.minute
-                        ws_min   = int(config.start_time * 60)
-                        tol      = config.late_tolerance_minutes or 30
-                        diff     = ci_min - ws_min
-                        c_status = 'on_time' if diff <= tol else 'late'
-
                     self.env.cr.execute(
                         """
                         INSERT INTO hr_attendance
                             (employee_id, check_in, check_out,
                              break_start, break_end, break_duration, worked_hours,
                              missing_checkout, is_absent, department_type, shift_type,
-                             department_shift, checkin_status,
+                             department_shift,
                              create_uid, write_uid, create_date, write_date)
                         VALUES (%s, %s, %s, %s, %s, %s, %s,
-                                %s, FALSE, %s, %s, %s, %s,
+                                %s, FALSE, %s, %s, %s,
                                 %s, %s, NOW(), NOW())
+                        RETURNING id
                         """,
                         (
                             employee.id, check_in_ts, check_out_ts,
@@ -545,22 +589,15 @@ class AttendanceDevice(models.Model):
                             employee.department_type or '',
                             employee.shift_type or '',
                             get_dept_shift(employee),
-                            c_status,
                             self.env.uid, self.env.uid,
                         )
                     )
+                    new_id = self.env.cr.fetchone()[0]
 
-                    # Force recompute worked_hours after raw SQL INSERT
+                    # Recompute worked_hours + multi-status after the raw INSERT
                     if check_out_ts:
-                        self.env.cr.execute(
-                            "SELECT id FROM hr_attendance "
-                            "WHERE employee_id=%s AND check_in=%s AND is_absent=FALSE "
-                            "ORDER BY id DESC LIMIT 1",
-                            (employee.id, check_in_ts)
-                        )
-                        row_id = self.env.cr.fetchone()
-                        if row_id:
-                            self.env['hr.attendance'].recompute_worked_hours_for_ids([row_id[0]])
+                        self.env['hr.attendance'].recompute_worked_hours_for_ids([new_id])
+                    self.env['hr.attendance'].recompute_statuses_for_ids([new_id])
 
                     if check_out_ts:
                         result.append(
@@ -639,8 +676,9 @@ class AttendanceDevice(models.Model):
                         _UTC = ZoneInfo("UTC")
                         last_ts_local = all_known_ts[-1].replace(tzinfo=_UTC).astimezone(_TZ)
                         last_ts_min   = last_ts_local.hour * 60 + last_ts_local.minute
-                        # Convert config.end_time (UTC float) to local minutes (+60 for UTC+1)
-                        shift_end_local_min = int(config.end_time * 60) + 60
+                        _, eff_end = config.effective_times(sday)
+                        # Convert shift end (UTC float) to local minutes (+60 for UTC+1)
+                        shift_end_local_min = int(eff_end * 60) + 60
                         shift_end_ok  = last_ts_min >= shift_end_local_min
                     else:
                         shift_end_ok  = True  # no config — use timestamp as-is
@@ -652,8 +690,9 @@ class AttendanceDevice(models.Model):
                         _UTC2 = ZoneInfo("UTC")
                         last_local2     = all_known_ts[-1].replace(tzinfo=_UTC2).astimezone(_TZ2)
                         extra_min       = int((config.max_extra_hours or 2.0) * 60)
-                        # Convert config.end_time (UTC float) to local minutes (+60 for UTC+1)
-                        deadline_min    = int(config.end_time * 60) + 60 + extra_min
+                        _, eff_end2 = config.effective_times(sday)
+                        # Convert shift end (UTC float) to local minutes (+60 for UTC+1)
+                        deadline_min    = int(eff_end2 * 60) + 60 + extra_min
                         last_min2       = last_local2.hour * 60 + last_local2.minute
                         past_deadline   = last_min2 >= deadline_min
                     elif not config:
@@ -912,12 +951,31 @@ class AttendanceDevice(models.Model):
         else:
             all_employees_phase1 = all_employees
 
+        today_is_saturday = today.weekday() == 5
         for emp in all_employees_phase1:
-            config             = emp.shift_config_id
-            work_start_minutes = int(config.start_time * 60)
-            threshold_m        = work_start_minutes + extra_threshold
+            config = emp.shift_config_id
+            # Saturday: a shift that doesn't declare a Saturday schedule is off
+            # that day → never generate an absence for it.
+            if today_is_saturday and not config.works_saturday:
+                continue
+            eff_start, eff_end = config.effective_times(today)
+            work_start_minutes = int(eff_start * 60)
             work_start_h       = work_start_minutes // 60
             work_start_m       = work_start_minutes % 60
+
+            on_leave = (emp.id, today) in leave_days
+            # Congé (approved leave) can be marked as soon as the shift starts;
+            # a no-show is only marked ABSENT within 1h of shift end, so someone
+            # who simply hasn't punched yet is never shown as absence early.
+            if on_leave:
+                threshold_m = work_start_minutes
+            elif eff_end > eff_start:                            # day shift
+                # A no-show becomes Absence once he's past the morning cutoff
+                # (shift start + Absence matinale delay) with still no punch.
+                morning_delay = int((config.absence_morning_delay or 2.5) * 60)
+                threshold_m   = work_start_minutes + morning_delay
+            else:                                                # night shift
+                threshold_m = work_start_minutes + extra_threshold
 
             if now_minutes <= threshold_m:
                 continue
@@ -932,7 +990,7 @@ class AttendanceDevice(models.Model):
                 tzinfo=TZ,
             ).astimezone(UTC).replace(tzinfo=None)
 
-            if (emp.id, today) in leave_days:
+            if on_leave:
                 inserts.append((emp.id, expected_utc, self.env.uid, 'timeoff'))
                 result.append(f"🏖️ {emp.name}  [{today}]  TIME OFF")
             else:
@@ -981,17 +1039,18 @@ class AttendanceDevice(models.Model):
                     past_real.add((emp_id, local_date))
 
             for emp in past_employees:
-                config             = emp.shift_config_id
-                work_start_minutes = int(config.start_time * 60)
-                work_start_h       = work_start_minutes // 60
-                work_start_m       = work_start_minutes % 60
+                config = emp.shift_config_id
 
                 d = global_scan_start
                 while d < today:
-                    # Skip Sundays
-                    if d.weekday() == 6:
+                    # Skip Sundays, and Saturdays for shifts that don't work them.
+                    if d.weekday() == 6 or (d.weekday() == 5 and not config.works_saturday):
                         d += timedelta(days=1)
                         continue
+                    eff_start, _ = config.effective_times(d)
+                    work_start_minutes = int(eff_start * 60)
+                    work_start_h       = work_start_minutes // 60
+                    work_start_m       = work_start_minutes % 60
                     key = (emp.id, d)
                     if key not in past_real and key not in past_absent:
                         expected_utc = datetime.combine(
@@ -1021,18 +1080,18 @@ class AttendanceDevice(models.Model):
                 (employee_id, check_in, check_out,
                  is_absent, missing_checkout,
                  worked_hours, break_duration,
-                 checkin_status, department_type, shift_type, department_shift,
+                 department_type, shift_type, department_shift,
                  create_uid, write_uid,
                  create_date, write_date)
             VALUES (%s, %s, NULL,
                     TRUE, FALSE,
                     0.0, 0.0,
-                    %s, %s, %s, %s,
+                    %s, %s, %s,
                     %s, %s,
                     NOW(), NOW())
             ON CONFLICT (employee_id, check_in) WHERE is_absent DO NOTHING
             """,
-            [(emp_id, chk, status,
+            [(emp_id, chk,
               emp_dept.get(emp_id, ''),
               emp_shift.get(emp_id, ''),
               emp_dept_shift.get(emp_id, ''),
@@ -1040,7 +1099,15 @@ class AttendanceDevice(models.Model):
              for emp_id, chk, uid, status in inserts]
         )
 
+        # Fetch the ids just inserted and compute their statuses (absence_full).
+        cr.execute(
+            "SELECT id FROM hr_attendance WHERE is_absent = TRUE AND (employee_id, check_in) IN %s",
+            (tuple((emp_id, chk) for emp_id, chk, uid, status in inserts),)
+        )
+        absent_ids = [r[0] for r in cr.fetchall()]
+
         self.env['hr.attendance'].invalidate_model()
+        self.env['hr.attendance'].recompute_statuses_for_ids(absent_ids)
         _logger.info("[ABSENT] Inserted %s record(s).", len(inserts))
 
 
@@ -1086,10 +1153,14 @@ class AttendanceDevice(models.Model):
         try:
             devices = self.search([])
             result  = []
+            # Read every device in parallel (network I/O), then process the
+            # results serially with the same per-device logic as before.
+            prefetched = self._parallel_read_devices(devices)
             for device in devices:
                 try:
                     with self.env.cr.savepoint():
-                        device._sync_device_attendance(cron=True)
+                        device._sync_device_attendance(
+                            cron=True, records=prefetched.get(device.id))
                     result.append(f"✅ {device.name} — synced")
                 except Exception as e:
                     result.append(f"❌ {device.name} — sync ERROR: {e}")
@@ -1119,12 +1190,18 @@ class AttendanceDevice(models.Model):
             _logger.info("[CRON] Sync already running — skipping this cycle")
             return
         try:
-            for device in self.search([]):
+            devices = self.search([])
+            # Read every device in parallel (network I/O) before processing, so
+            # the 5 device reads overlap instead of running back-to-back.
+            prefetched = self._parallel_read_devices(devices)
+            for device in devices:
                 try:
                     with self.env.cr.savepoint():
                         # Same process as the manual "Sync All" button: pull punches
                         # AND generate absences in one pass, under the advisory lock.
-                        device._sync_device_attendance(cron=True, generate_absences=True)
+                        device._sync_device_attendance(
+                            cron=True, generate_absences=True,
+                            records=prefetched.get(device.id))
                 except Exception:
                     _logger.exception("[CRON] Sync failed for %s", device.name)
         finally:
