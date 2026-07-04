@@ -426,6 +426,26 @@ class HrAttendance(models.Model):
             att.has_absence = bool(absences)
             badge_codes = set(codes)
             group_codes = set(codes)
+
+            # ── Filter/group refinements ──────────────────────────────────
+            # Badges (badge_codes) always keep showing every real status; only
+            # the grouping/filtering dimension (group_codes) is cleaned up so a
+            # record doesn't clutter a "healthy" filter when it also has a
+            # problem.
+            #
+            # 1) À l'heure / Retard + forgotten checkout → filter under Missing
+            #    Checkout only, not À l'heure / Retard. The row keeps both badges.
+            if 'missing_checkout' in group_codes:
+                group_codes.discard('on_time')
+                group_codes.discard('late')
+            # 2) An absence combined with a missing checkout — or a lone-punch
+            #    anomalie — is an anomaly: filter it under Anomalie only (not
+            #    Absence / Missing Checkout). Badges still show what happened.
+            if 'anomalie' in codes or (absences and 'missing_checkout' in codes):
+                badge_codes.add('anomalie')
+                group_codes = {'anomalie'}
+
+            # Résolut wins: a resolved absence lives only under Résolut.
             if att.is_resolved and att.has_absence:
                 badge_codes = absences | {'resolved'}
                 group_codes = {'resolved'}

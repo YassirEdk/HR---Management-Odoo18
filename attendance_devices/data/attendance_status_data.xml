@@ -44,6 +44,12 @@
         <field name="color">10</field>
         <field name="sequence">45</field>
     </record>
+    <record id="bucket_anomalie" model="attendance.status.bucket">
+        <field name="name">Anomalie</field>
+        <field name="code">anomalie</field>
+        <field name="color">9</field>
+        <field name="sequence">50</field>
+    </record>
 
     <!-- ── 7 detailed statuses ── -->
     <record id="status_on_time" model="attendance.status">
@@ -114,7 +120,7 @@
         <field name="code">anomalie</field>
         <field name="color">9</field>
         <field name="sequence">70</field>
-        <!-- no bucket: internal only, not shown in the 4-bucket view -->
+        <field name="bucket_id" ref="bucket_anomalie"/>
     </record>
 
 </odoo>

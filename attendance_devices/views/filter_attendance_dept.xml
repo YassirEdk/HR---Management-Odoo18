@@ -171,6 +171,10 @@
                     name="filter_autres"
                     domain="[('status_bucket_ids.code', '=', 'missing_checkout')]"/>
                 <filter
+                    string="Anomalie"
+                    name="filter_anomalie"
+                    domain="[('status_bucket_ids.code', '=', 'anomalie')]"/>
+                <filter
                     string="Résolut"
                     name="filter_resolved"
                     domain="[('status_ids.code', '=', 'resolved')]"/>

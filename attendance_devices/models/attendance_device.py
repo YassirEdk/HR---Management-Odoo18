@@ -424,6 +424,7 @@ class AttendanceDevice(models.Model):
             if generate_absences:
                 self.env.cr.execute('SELECT 1')
                 self._generate_absences(result)
+            self._audit_today_pushes(grouped_by_day, today_sday, cutoff, result)
             if not cron:
                 return self._open_result_wizard(["No new records since last sync."] + result)
             return True
@@ -770,6 +771,9 @@ class AttendanceDevice(models.Model):
             self.env.cr.execute('SELECT 1')  # force flush
             self._generate_absences(result)
 
+        # Post-sync audit: confirm every push of the day was created & processed.
+        self._audit_today_pushes(grouped_by_day, today_sday, cutoff, result)
+
         self.last_sync = now_utc_naive
         if not cron:
             return self._open_result_wizard(result)
@@ -854,6 +858,124 @@ class AttendanceDevice(models.Model):
                 self.name, len(verify_badges), today_sday, sorted(verify_badges)
             )
         return verify_badges
+
+    # ---------------------------------------------------------
+    # AUDIT: confirm every push of the day was created & processed
+    # ---------------------------------------------------------
+    def _audit_today_pushes(self, grouped_by_day, today_sday, cutoff, result):
+        """Post-sync self-check for TODAY's shift-day: every device push should
+        now be reflected in a stored, processed record.
+
+        Runs after the whole sync (processing + absence generation) is done, so
+        anything it still flags is genuinely stuck — not just pending. Appends a
+        one-line summary to ``result`` (shown in the sync wizard) and logs a
+        warning per unresolved badge (visible in the cron logs).
+
+        A badge is reported only when a push was really dropped:
+          * the badge has punches today but NO record was created, or
+          * the record is closed but its checkout is older than the device's
+            latest punch (a checkout/break punch that never made it in).
+        Records that are legitimately open (before shift end / within the extra
+        hours window) or closed as a missing-checkout are counted as OK.
+        """
+        today_badges = [b for b, days in grouped_by_day.items() if days.get(today_sday)]
+        if not today_badges:
+            result.append("🔎 Vérification: aucun pointage aujourd'hui.")
+            return {'punches': 0, 'badges': 0, 'ok': 0, 'issues': []}
+
+        # Resolve badge → employee WITHOUT the device's department filter so we
+        # can tell "no employee at all" (a real problem) apart from "belongs to
+        # another device's department" (not this sync's job).
+        employees    = self.env['hr.employee'].search([('badge_id', 'in', today_badges)])
+        emp_by_badge = {e.badge_id: e for e in employees}
+
+        window_start = datetime.combine(today_sday, cutoff_time(cutoff))
+        window_end   = window_start + timedelta(hours=24)
+        self.env.cr.execute(
+            """
+            SELECT employee_id, check_in, check_out
+              FROM hr_attendance
+             WHERE employee_id = ANY(%s)
+               AND check_in   >= %s
+               AND check_in   <  %s
+               AND is_absent  = FALSE
+             ORDER BY check_in ASC
+            """,
+            (employees.ids or [0], window_start, window_end)
+        )
+        stored = {}
+        for emp_id, ci, co in self.env.cr.fetchall():
+            stored.setdefault(emp_id, (ci, co))   # earliest real record per employee
+
+        dept_filter   = self.department_type if (self.department_type and self.department_type != 'all') else None
+        TOL           = timedelta(seconds=60)
+        total_punches = 0
+        n_badges      = 0
+        ok            = 0
+        issues        = []
+
+        for badge in today_badges:
+            device_ts = collapse_near_duplicates(sorted(set(grouped_by_day[badge][today_sday])))
+            if not device_ts:
+                continue
+
+            employee = emp_by_badge.get(badge)
+            if not employee:
+                total_punches += len(device_ts)
+                n_badges      += 1
+                issues.append(f"⚠️ Badge {badge}: {len(device_ts)} pointage(s) — aucun employé lié.")
+                continue
+
+            # Managed by another device's department → not this sync's job.
+            if dept_filter and employee.department_type != dept_filter:
+                continue
+
+            total_punches += len(device_ts)
+            n_badges      += 1
+            dev_last = device_ts[-1]
+            rec      = stored.get(employee.id)
+            if rec is None:
+                issues.append(
+                    f"❌ {employee.name}: {len(device_ts)} pointage(s) device, "
+                    f"aucun enregistrement créé."
+                )
+                continue
+
+            rec_ci, rec_co = rec
+            # Closed = a real checkout (co present and different from the check-in).
+            # co == ci is a deliberate missing-checkout; co NULL is still open —
+            # both are fine, later punches there aren't a dropped checkout.
+            closed = bool(rec_co and rec_co != rec_ci)
+            if closed and dev_last > rec_co + TOL:
+                issues.append(
+                    f"❌ {employee.name}: dernier pointage "
+                    f"{dev_last.strftime('%H:%M')} non reflété "
+                    f"(clôturé à {rec_co.strftime('%H:%M')})."
+                )
+                continue
+
+            ok += 1
+
+        if issues:
+            result.append(
+                f"🔎 Vérification: {total_punches} pointage(s), {n_badges} badge(s) — "
+                f"{ok} OK, {len(issues)} à revoir:"
+            )
+            result.extend("   " + m for m in issues)
+            _logger.warning(
+                "[AUDIT] %s: %s/%s badge(s) unresolved for %s: %s",
+                self.name, len(issues), n_badges, today_sday, issues
+            )
+        else:
+            result.append(
+                f"🔎 Vérification: {total_punches} pointage(s), {n_badges} badge(s) — "
+                f"tous créés et traités ✅"
+            )
+            _logger.info(
+                "[AUDIT] %s: all %s badge(s) reconciled for %s.",
+                self.name, n_badges, today_sday
+            )
+        return {'punches': total_punches, 'badges': n_badges, 'ok': ok, 'issues': issues}
 
     # ---------------------------------------------------------
     # ABSENCE GENERATION
