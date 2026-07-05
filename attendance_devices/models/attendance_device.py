@@ -101,7 +101,12 @@ def compute_breaks(all_ts: list, brk_win_start=None, brk_win_end=None) -> tuple:
         if gap_secs >= 60:
             total_break_secs += gap_secs
             if use_window:
-                in_window = gap_start < lwe and gap_end > lws
+                # The break must actually FALL INSIDE the window: either the
+                # punch-out (gap_start) or the punch-in (gap_end) lands within
+                # [lws, lwe]. A gap that merely straddles the window (out well
+                # before 12:00 and back long after 14:00) is NOT a lunch break —
+                # e.g. a double check-in at 08:51/08:55 then return at 19:03.
+                in_window = (lws <= gap_start < lwe) or (lws < gap_end <= lwe)
                 if in_window and not main_chosen:
                     main_break_start, main_break_end = gap_start, gap_end
                     main_break_secs  = gap_secs
@@ -171,7 +176,10 @@ def compute_breaks_from_sessions(sessions: list, brk_win_start=None, brk_win_end
             total_break_secs += gap_secs
             # Only assign break_start/end if gap is within the shift config window
             if use_window:
-                in_window = co_i < lwe and ci_next > lws
+                # Break must fall inside the window (see compute_breaks): either
+                # endpoint lands within [lws, lwe]. A gap that just straddles the
+                # window is not a lunch break.
+                in_window = (lws <= co_i < lwe) or (lws < ci_next <= lwe)
                 if in_window and not main_chosen:
                     main_break_start, main_break_end = co_i, ci_next
                     main_break_secs  = gap_secs
