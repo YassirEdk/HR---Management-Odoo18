@@ -5,7 +5,7 @@
         <field name="name">attendance.overview.wizard.form</field>
         <field name="model">attendance.overview.wizard</field>
         <field name="arch" type="xml">
-            <form string="Pick a date">
+            <form string="Voir une date">
                 <sheet>
 
                     <!-- Date picker -->
@@ -22,226 +22,505 @@
                                 class="btn-primary"/>
                     </div>
 
-                    <!-- Global totals -->
-                    <div class="o_button_box" name="button_box">
+                    <div class="o_button_box" name="button_box" invisible="total_present == 0 and total_late == 0 and total_late_break == 0 and total_absent == 0 and total_timeoff == 0 and total_autres == 0 and total_anomalie == 0 and total_resolved == 0">
 
-                        <button name="action_view_present" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'on_time'}"
+                                invisible="total_present == 0"
                                 class="o_stat_button" icon="fa-check-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-success">
                                     <field name="total_present" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">A l'heure</span>
+                                <br/><span class="o_stat_text">À l'heure</span>
                             </div>
                         </button>
 
-                        <button name="action_view_late" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late'}"
+                                invisible="total_late == 0"
                                 class="o_stat_button" icon="fa-clock-o">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-warning">
                                     <field name="total_late" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">En retard</span>
+                                <br/><span class="o_stat_text">Retard</span>
                             </div>
                         </button>
 
-                        <button name="action_view_absent" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late_break'}"
+                                invisible="total_late_break == 0"
+                                class="o_stat_button" icon="fa-hourglass-half">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-warning">
+                                    <field name="total_late_break" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Retard de pause</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'absence'}"
+                                invisible="total_absent == 0"
                                 class="o_stat_button" icon="fa-times-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-danger">
                                     <field name="total_absent" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Absent</span>
+                                <br/><span class="o_stat_text">Absence</span>
                             </div>
                         </button>
 
-                        <button name="action_view_autres" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'timeoff'}"
+                                invisible="total_timeoff == 0"
+                                class="o_stat_button" icon="fa-plane">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-info">
+                                    <field name="total_timeoff" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Congé</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'missing_checkout'}"
+                                invisible="total_autres == 0"
                                 class="o_stat_button" icon="fa-question-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-muted">
                                     <field name="total_autres" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Autres</span>
+                                <br/><span class="o_stat_text">Missing Checkout</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'anomalie'}"
+                                invisible="total_anomalie == 0"
+                                class="o_stat_button" icon="fa-exclamation-triangle">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-danger">
+                                    <field name="total_anomalie" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Anomalie</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'resolved'}"
+                                invisible="total_resolved == 0"
+                                class="o_stat_button" icon="fa-check">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-success">
+                                    <field name="total_resolved" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Résolut</span>
                             </div>
                         </button>
 
                     </div>
 
-                    <separator string="Siège"/>
-                    <div class="o_button_box" name="siege_box">
+                    <separator string="Siège" invisible="siege_present == 0 and siege_late == 0 and siege_late_break == 0 and siege_absent == 0 and siege_timeoff == 0 and siege_autres == 0 and siege_anomalie == 0 and siege_resolved == 0"/>
+                    <div class="o_button_box" name="siege_box" invisible="siege_present == 0 and siege_late == 0 and siege_late_break == 0 and siege_absent == 0 and siege_timeoff == 0 and siege_autres == 0 and siege_anomalie == 0 and siege_resolved == 0">
 
-                        <button name="action_siege_present" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'on_time', 'dept': 'siege'}"
+                                invisible="siege_present == 0"
                                 class="o_stat_button" icon="fa-check-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-success">
                                     <field name="siege_present" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">A l'heure</span>
+                                <br/><span class="o_stat_text">À l'heure</span>
                             </div>
                         </button>
 
-                        <button name="action_siege_late" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late', 'dept': 'siege'}"
+                                invisible="siege_late == 0"
                                 class="o_stat_button" icon="fa-clock-o">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-warning">
                                     <field name="siege_late" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">En retard</span>
+                                <br/><span class="o_stat_text">Retard</span>
                             </div>
                         </button>
 
-                        <button name="action_siege_absent" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late_break', 'dept': 'siege'}"
+                                invisible="siege_late_break == 0"
+                                class="o_stat_button" icon="fa-hourglass-half">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-warning">
+                                    <field name="siege_late_break" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Retard de pause</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'absence', 'dept': 'siege'}"
+                                invisible="siege_absent == 0"
                                 class="o_stat_button" icon="fa-times-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-danger">
                                     <field name="siege_absent" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Absent</span>
+                                <br/><span class="o_stat_text">Absence</span>
                             </div>
                         </button>
 
-                        <button name="action_siege_autres" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'timeoff', 'dept': 'siege'}"
+                                invisible="siege_timeoff == 0"
+                                class="o_stat_button" icon="fa-plane">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-info">
+                                    <field name="siege_timeoff" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Congé</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'missing_checkout', 'dept': 'siege'}"
+                                invisible="siege_autres == 0"
                                 class="o_stat_button" icon="fa-question-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-muted">
                                     <field name="siege_autres" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Autres</span>
+                                <br/><span class="o_stat_text">Missing Checkout</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'anomalie', 'dept': 'siege'}"
+                                invisible="siege_anomalie == 0"
+                                class="o_stat_button" icon="fa-exclamation-triangle">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-danger">
+                                    <field name="siege_anomalie" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Anomalie</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'resolved', 'dept': 'siege'}"
+                                invisible="siege_resolved == 0"
+                                class="o_stat_button" icon="fa-check">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-success">
+                                    <field name="siege_resolved" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Résolut</span>
                             </div>
                         </button>
 
                     </div>
 
-                    <separator string="Agence"/>
-                    <div class="o_button_box" name="agence_box">
+                    <separator string="Agence" invisible="agence_present == 0 and agence_late == 0 and agence_late_break == 0 and agence_absent == 0 and agence_timeoff == 0 and agence_autres == 0 and agence_anomalie == 0 and agence_resolved == 0"/>
+                    <div class="o_button_box" name="agence_box" invisible="agence_present == 0 and agence_late == 0 and agence_late_break == 0 and agence_absent == 0 and agence_timeoff == 0 and agence_autres == 0 and agence_anomalie == 0 and agence_resolved == 0">
 
-                        <button name="action_agence_present" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'on_time', 'dept': 'agence'}"
+                                invisible="agence_present == 0"
                                 class="o_stat_button" icon="fa-check-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-success">
                                     <field name="agence_present" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">A l'heure</span>
+                                <br/><span class="o_stat_text">À l'heure</span>
                             </div>
                         </button>
 
-                        <button name="action_agence_late" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late', 'dept': 'agence'}"
+                                invisible="agence_late == 0"
                                 class="o_stat_button" icon="fa-clock-o">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-warning">
                                     <field name="agence_late" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">En retard</span>
+                                <br/><span class="o_stat_text">Retard</span>
                             </div>
                         </button>
 
-                        <button name="action_agence_absent" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late_break', 'dept': 'agence'}"
+                                invisible="agence_late_break == 0"
+                                class="o_stat_button" icon="fa-hourglass-half">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-warning">
+                                    <field name="agence_late_break" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Retard de pause</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'absence', 'dept': 'agence'}"
+                                invisible="agence_absent == 0"
                                 class="o_stat_button" icon="fa-times-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-danger">
                                     <field name="agence_absent" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Absent</span>
+                                <br/><span class="o_stat_text">Absence</span>
                             </div>
                         </button>
 
-                        <button name="action_agence_autres" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'timeoff', 'dept': 'agence'}"
+                                invisible="agence_timeoff == 0"
+                                class="o_stat_button" icon="fa-plane">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-info">
+                                    <field name="agence_timeoff" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Congé</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'missing_checkout', 'dept': 'agence'}"
+                                invisible="agence_autres == 0"
                                 class="o_stat_button" icon="fa-question-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-muted">
                                     <field name="agence_autres" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Autres</span>
+                                <br/><span class="o_stat_text">Missing Checkout</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'anomalie', 'dept': 'agence'}"
+                                invisible="agence_anomalie == 0"
+                                class="o_stat_button" icon="fa-exclamation-triangle">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-danger">
+                                    <field name="agence_anomalie" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Anomalie</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'resolved', 'dept': 'agence'}"
+                                invisible="agence_resolved == 0"
+                                class="o_stat_button" icon="fa-check">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-success">
+                                    <field name="agence_resolved" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Résolut</span>
                             </div>
                         </button>
 
                     </div>
 
-                    <separator string="Warehouse"/>
-                    <div class="o_button_box" name="warehouse_box">
+                    <separator string="Entrepôt" invisible="warehouse_present == 0 and warehouse_late == 0 and warehouse_late_break == 0 and warehouse_absent == 0 and warehouse_timeoff == 0 and warehouse_autres == 0 and warehouse_anomalie == 0 and warehouse_resolved == 0"/>
+                    <div class="o_button_box" name="warehouse_box" invisible="warehouse_present == 0 and warehouse_late == 0 and warehouse_late_break == 0 and warehouse_absent == 0 and warehouse_timeoff == 0 and warehouse_autres == 0 and warehouse_anomalie == 0 and warehouse_resolved == 0">
 
-                        <button name="action_warehouse_present" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'on_time', 'dept': 'warehouse'}"
+                                invisible="warehouse_present == 0"
                                 class="o_stat_button" icon="fa-check-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-success">
                                     <field name="warehouse_present" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">A l'heure</span>
+                                <br/><span class="o_stat_text">À l'heure</span>
                             </div>
                         </button>
 
-                        <button name="action_warehouse_late" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late', 'dept': 'warehouse'}"
+                                invisible="warehouse_late == 0"
                                 class="o_stat_button" icon="fa-clock-o">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-warning">
                                     <field name="warehouse_late" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">En retard</span>
+                                <br/><span class="o_stat_text">Retard</span>
                             </div>
                         </button>
 
-                        <button name="action_warehouse_absent" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late_break', 'dept': 'warehouse'}"
+                                invisible="warehouse_late_break == 0"
+                                class="o_stat_button" icon="fa-hourglass-half">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-warning">
+                                    <field name="warehouse_late_break" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Retard de pause</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'absence', 'dept': 'warehouse'}"
+                                invisible="warehouse_absent == 0"
                                 class="o_stat_button" icon="fa-times-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-danger">
                                     <field name="warehouse_absent" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Absent</span>
+                                <br/><span class="o_stat_text">Absence</span>
                             </div>
                         </button>
 
-                        <button name="action_warehouse_autres" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'timeoff', 'dept': 'warehouse'}"
+                                invisible="warehouse_timeoff == 0"
+                                class="o_stat_button" icon="fa-plane">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-info">
+                                    <field name="warehouse_timeoff" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Congé</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'missing_checkout', 'dept': 'warehouse'}"
+                                invisible="warehouse_autres == 0"
                                 class="o_stat_button" icon="fa-question-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-muted">
                                     <field name="warehouse_autres" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Autres</span>
+                                <br/><span class="o_stat_text">Missing Checkout</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'anomalie', 'dept': 'warehouse'}"
+                                invisible="warehouse_anomalie == 0"
+                                class="o_stat_button" icon="fa-exclamation-triangle">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-danger">
+                                    <field name="warehouse_anomalie" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Anomalie</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'resolved', 'dept': 'warehouse'}"
+                                invisible="warehouse_resolved == 0"
+                                class="o_stat_button" icon="fa-check">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-success">
+                                    <field name="warehouse_resolved" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Résolut</span>
                             </div>
                         </button>
 
                     </div>
 
-                    <separator string="Aéroport"/>
-                    <div class="o_button_box" name="aeroport_box">
+                    <separator string="Aéroport" invisible="aeroport_present == 0 and aeroport_late == 0 and aeroport_late_break == 0 and aeroport_absent == 0 and aeroport_timeoff == 0 and aeroport_autres == 0 and aeroport_anomalie == 0 and aeroport_resolved == 0"/>
+                    <div class="o_button_box" name="aeroport_box" invisible="aeroport_present == 0 and aeroport_late == 0 and aeroport_late_break == 0 and aeroport_absent == 0 and aeroport_timeoff == 0 and aeroport_autres == 0 and aeroport_anomalie == 0 and aeroport_resolved == 0">
 
-                        <button name="action_aeroport_present" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'on_time', 'dept': 'aeroport'}"
+                                invisible="aeroport_present == 0"
                                 class="o_stat_button" icon="fa-check-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-success">
                                     <field name="aeroport_present" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">A l'heure</span>
+                                <br/><span class="o_stat_text">À l'heure</span>
                             </div>
                         </button>
 
-                        <button name="action_aeroport_late" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late', 'dept': 'aeroport'}"
+                                invisible="aeroport_late == 0"
                                 class="o_stat_button" icon="fa-clock-o">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-warning">
                                     <field name="aeroport_late" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">En retard</span>
+                                <br/><span class="o_stat_text">Retard</span>
                             </div>
                         </button>
 
-                        <button name="action_aeroport_absent" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'late_break', 'dept': 'aeroport'}"
+                                invisible="aeroport_late_break == 0"
+                                class="o_stat_button" icon="fa-hourglass-half">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-warning">
+                                    <field name="aeroport_late_break" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Retard de pause</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'absence', 'dept': 'aeroport'}"
+                                invisible="aeroport_absent == 0"
                                 class="o_stat_button" icon="fa-times-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-danger">
                                     <field name="aeroport_absent" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Absent</span>
+                                <br/><span class="o_stat_text">Absence</span>
                             </div>
                         </button>
 
-                        <button name="action_aeroport_autres" type="object"
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'timeoff', 'dept': 'aeroport'}"
+                                invisible="aeroport_timeoff == 0"
+                                class="o_stat_button" icon="fa-plane">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-info">
+                                    <field name="aeroport_timeoff" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Congé</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'missing_checkout', 'dept': 'aeroport'}"
+                                invisible="aeroport_autres == 0"
                                 class="o_stat_button" icon="fa-question-circle">
                             <div class="o_stat_info">
                                 <span class="o_stat_value text-muted">
                                     <field name="aeroport_autres" readonly="1" nolabel="1"/>
                                 </span>
-                                <br/><span class="o_stat_text">Autres</span>
+                                <br/><span class="o_stat_text">Missing Checkout</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'anomalie', 'dept': 'aeroport'}"
+                                invisible="aeroport_anomalie == 0"
+                                class="o_stat_button" icon="fa-exclamation-triangle">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-danger">
+                                    <field name="aeroport_anomalie" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Anomalie</span>
+                            </div>
+                        </button>
+
+                        <button name="action_view_bucket" type="object"
+                                context="{'bucket_code': 'resolved', 'dept': 'aeroport'}"
+                                invisible="aeroport_resolved == 0"
+                                class="o_stat_button" icon="fa-check">
+                            <div class="o_stat_info">
+                                <span class="o_stat_value text-success">
+                                    <field name="aeroport_resolved" readonly="1" nolabel="1"/>
+                                </span>
+                                <br/><span class="o_stat_text">Résolut</span>
                             </div>
                         </button>
 
@@ -256,7 +535,7 @@
     </record>
 
     <record id="action_attendance_overview_wizard" model="ir.actions.act_window">
-        <field name="name">Pick a date</field>
+        <field name="name">Voir une date</field>
         <field name="res_model">attendance.overview.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
@@ -265,7 +544,7 @@
 
     <menuitem
         id="menu_attendance_overview_wizard"
-        name="Pick a date"
+        name="Voir une date"
         parent="hr_attendance.menu_hr_attendance_root"
         action="action_attendance_overview_wizard"
         sequence="6"/>

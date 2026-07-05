@@ -32,7 +32,7 @@ class HrAttendance(models.Model):
         compute='_compute_check_inout_display',
     )
 
-    @api.depends('check_in', 'check_out', 'is_absent', 'is_anomalie')
+    @api.depends('check_in', 'check_out', 'is_absent', 'is_anomalie', 'missing_checkout')
     def _compute_check_inout_display(self):
         TZ  = ZoneInfo("Africa/Casablanca")
         UTC = ZoneInfo("UTC")
@@ -49,6 +49,13 @@ class HrAttendance(models.Model):
                 # Single punch treated as a checkout; check-in shown empty.
                 att.check_in_display  = ''
                 att.check_out_display = fmt(att.check_out or att.check_in) if (att.check_out or att.check_in) else ''
+                continue
+            if att.missing_checkout and att.check_out and att.check_out == att.check_in:
+                # Forgotten checkout: the punch is the check-IN. Leave the
+                # checkout blank (like an absence) instead of echoing the
+                # check-in time.
+                att.check_in_display  = fmt(att.check_in) if att.check_in else ''
+                att.check_out_display = ''
                 continue
             att.check_in_display  = fmt(att.check_in) if att.check_in else ''
             att.check_out_display = fmt(att.check_out) if att.check_out else ''
@@ -438,10 +445,22 @@ class HrAttendance(models.Model):
             if 'missing_checkout' in group_codes:
                 group_codes.discard('on_time')
                 group_codes.discard('late')
-            # 2) An absence combined with a missing checkout — or a lone-punch
-            #    anomalie — is an anomaly: filter it under Anomalie only (not
-            #    Absence / Missing Checkout). Badges still show what happened.
-            if 'anomalie' in codes or (absences and 'missing_checkout' in codes):
+            # 1b) MORNING absence + forgotten checkout → reported as Missing
+            #     Checkout ONLY (badge + grouping). The employee arrived in the
+            #     afternoon and forgot to punch out, so the morning gap is not
+            #     shown or grouped separately, and the row is no longer treated
+            #     as a resolvable absence.
+            if 'missing_checkout' in codes and 'absence_morning' in codes:
+                badge_codes.discard('absence_morning')
+                group_codes.discard('absence_morning')
+                absences = absences - {'absence_morning'}
+                att.has_absence = bool(absences)
+            # 2) A FULL-DAY or AFTERNOON absence combined with a missing checkout
+            #    — or a lone-punch anomalie — is an anomaly: filter it under
+            #    Anomalie only (not Absence / Missing Checkout). Badges still show
+            #    what happened.
+            hard_absences = codes & {'absence_afternoon', 'absence_full'}
+            if 'anomalie' in codes or (hard_absences and 'missing_checkout' in codes):
                 badge_codes.add('anomalie')
                 group_codes = {'anomalie'}
 

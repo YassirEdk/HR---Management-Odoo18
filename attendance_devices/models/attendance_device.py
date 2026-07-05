@@ -1302,6 +1302,36 @@ class AttendanceDevice(models.Model):
 
 
     # ---------------------------------------------------------
+    # BUTTON (list view): Sync only the SELECTED devices
+    # ---------------------------------------------------------
+    def action_sync_selected(self):
+        """Sync only the devices ticked in the list view (self = selection)."""
+        if not self:
+            return self._open_result_wizard(["⚠️ Aucun appareil sélectionné."])
+        # Same advisory lock the cron / single-device sync use, so this can never
+        # run concurrently with them and insert duplicate attendance rows.
+        self.env.cr.execute("SELECT pg_try_advisory_lock(987654321)")
+        if not self.env.cr.fetchone()[0]:
+            return self._open_result_wizard(
+                ["⚠️ Une synchronisation est déjà en cours — veuillez réessayer dans un instant."]
+            )
+        try:
+            result     = []
+            prefetched = self._parallel_read_devices(self)
+            for device in self:
+                try:
+                    with self.env.cr.savepoint():
+                        device._sync_device_attendance(
+                            cron=True, records=prefetched.get(device.id))
+                    result.append(f"✅ {device.name} — synchronisé")
+                except Exception as e:
+                    result.append(f"❌ {device.name} — ERREUR : {e}")
+                    _logger.exception("[SYNC SELECTED] Failed for %s", device.name)
+            return self._open_result_wizard(result or ["Appareils synchronisés."])
+        finally:
+            self.env.cr.execute("SELECT pg_advisory_unlock(987654321)")
+
+    # ---------------------------------------------------------
     # CRON — all devices
     # ---------------------------------------------------------
     @api.model
