@@ -22,7 +22,7 @@
                                 class="btn-primary"/>
                     </div>
 
-                    <div class="o_button_box" name="button_box" invisible="total_present == 0 and total_late == 0 and total_late_break == 0 and total_absent == 0 and total_timeoff == 0 and total_autres == 0 and total_anomalie == 0 and total_resolved == 0">
+                    <div class="o_button_box" name="button_box">
 
                         <button name="action_view_bucket" type="object"
                                 context="{'bucket_code': 'on_time'}"
@@ -122,8 +122,8 @@
 
                     </div>
 
-                    <separator string="Siège" invisible="siege_present == 0 and siege_late == 0 and siege_late_break == 0 and siege_absent == 0 and siege_timeoff == 0 and siege_autres == 0 and siege_anomalie == 0 and siege_resolved == 0"/>
-                    <div class="o_button_box" name="siege_box" invisible="siege_present == 0 and siege_late == 0 and siege_late_break == 0 and siege_absent == 0 and siege_timeoff == 0 and siege_autres == 0 and siege_anomalie == 0 and siege_resolved == 0">
+                    <separator string="Siège"/>
+                    <div class="o_button_box" name="siege_box">
 
                         <button name="action_view_bucket" type="object"
                                 context="{'bucket_code': 'on_time', 'dept': 'siege'}"
@@ -222,9 +222,12 @@
                         </button>
 
                     </div>
+                    <div class="text-muted fst-italic ms-2 mb-3" invisible="siege_present != 0 or siege_late != 0 or siege_late_break != 0 or siege_absent != 0 or siege_timeoff != 0 or siege_autres != 0 or siege_anomalie != 0 or siege_resolved != 0">
+                        Aucun statut à afficher pour cette date.
+                    </div>
 
-                    <separator string="Agence" invisible="agence_present == 0 and agence_late == 0 and agence_late_break == 0 and agence_absent == 0 and agence_timeoff == 0 and agence_autres == 0 and agence_anomalie == 0 and agence_resolved == 0"/>
-                    <div class="o_button_box" name="agence_box" invisible="agence_present == 0 and agence_late == 0 and agence_late_break == 0 and agence_absent == 0 and agence_timeoff == 0 and agence_autres == 0 and agence_anomalie == 0 and agence_resolved == 0">
+                    <separator string="Agence"/>
+                    <div class="o_button_box" name="agence_box">
 
                         <button name="action_view_bucket" type="object"
                                 context="{'bucket_code': 'on_time', 'dept': 'agence'}"
@@ -323,9 +326,12 @@
                         </button>
 
                     </div>
+                    <div class="text-muted fst-italic ms-2 mb-3" invisible="agence_present != 0 or agence_late != 0 or agence_late_break != 0 or agence_absent != 0 or agence_timeoff != 0 or agence_autres != 0 or agence_anomalie != 0 or agence_resolved != 0">
+                        Aucun statut à afficher pour cette date.
+                    </div>
 
-                    <separator string="Entrepôt" invisible="warehouse_present == 0 and warehouse_late == 0 and warehouse_late_break == 0 and warehouse_absent == 0 and warehouse_timeoff == 0 and warehouse_autres == 0 and warehouse_anomalie == 0 and warehouse_resolved == 0"/>
-                    <div class="o_button_box" name="warehouse_box" invisible="warehouse_present == 0 and warehouse_late == 0 and warehouse_late_break == 0 and warehouse_absent == 0 and warehouse_timeoff == 0 and warehouse_autres == 0 and warehouse_anomalie == 0 and warehouse_resolved == 0">
+                    <separator string="Entrepôt"/>
+                    <div class="o_button_box" name="warehouse_box">
 
                         <button name="action_view_bucket" type="object"
                                 context="{'bucket_code': 'on_time', 'dept': 'warehouse'}"
@@ -424,9 +430,12 @@
                         </button>
 
                     </div>
+                    <div class="text-muted fst-italic ms-2 mb-3" invisible="warehouse_present != 0 or warehouse_late != 0 or warehouse_late_break != 0 or warehouse_absent != 0 or warehouse_timeoff != 0 or warehouse_autres != 0 or warehouse_anomalie != 0 or warehouse_resolved != 0">
+                        Aucun statut à afficher pour cette date.
+                    </div>
 
-                    <separator string="Aéroport" invisible="aeroport_present == 0 and aeroport_late == 0 and aeroport_late_break == 0 and aeroport_absent == 0 and aeroport_timeoff == 0 and aeroport_autres == 0 and aeroport_anomalie == 0 and aeroport_resolved == 0"/>
-                    <div class="o_button_box" name="aeroport_box" invisible="aeroport_present == 0 and aeroport_late == 0 and aeroport_late_break == 0 and aeroport_absent == 0 and aeroport_timeoff == 0 and aeroport_autres == 0 and aeroport_anomalie == 0 and aeroport_resolved == 0">
+                    <separator string="Aéroport"/>
+                    <div class="o_button_box" name="aeroport_box">
 
                         <button name="action_view_bucket" type="object"
                                 context="{'bucket_code': 'on_time', 'dept': 'aeroport'}"
@@ -524,6 +533,9 @@
                             </div>
                         </button>
 
+                    </div>
+                    <div class="text-muted fst-italic ms-2 mb-3" invisible="aeroport_present != 0 or aeroport_late != 0 or aeroport_late_break != 0 or aeroport_absent != 0 or aeroport_timeoff != 0 or aeroport_autres != 0 or aeroport_anomalie != 0 or aeroport_resolved != 0">
+                        Aucun statut à afficher pour cette date.
                     </div>
 
                 </sheet>
