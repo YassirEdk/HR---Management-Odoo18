@@ -268,6 +268,20 @@ class HrAttendance(models.Model):
              'ever earned. Statuses are additive and permanent: a later edit or '
              'recompute can only add codes here, never remove one.',
     )
+    can_edit_times = fields.Boolean(
+        string='Can edit times',
+        compute='_compute_can_edit_times',
+        help='Drives whether check-in / check-out are editable. Administrators '
+             'always can; the HR role can only once the record is marked Résolut.',
+    )
+
+    @api.depends('is_resolved')
+    def _compute_can_edit_times(self):
+        # Admins keep full edit rights; the HR role must tick Résolut first.
+        is_admin = (self.env.user.has_group('attendance_devices.group_attendance_device_admin')
+                    or self.env.user.has_group('base.group_system'))
+        for att in self:
+            att.can_edit_times = is_admin or att.is_resolved
 
     status_ids = fields.Many2many(
         'attendance.status',

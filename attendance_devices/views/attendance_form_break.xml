@@ -7,19 +7,25 @@
         <field name="inherit_id" ref="hr_attendance.hr_attendance_view_form"/>
         <field name="arch" type="xml">
 
-            <!-- Absent rows: the check_in time is a placeholder, show DATE only -->
+            <!-- Times are read-only until editing is allowed: admins always,
+                 the HR role only after ticking Résolut (see can_edit_times). -->
             <xpath expr="//field[@name='check_in']" position="before">
                 <field name="is_absent" invisible="1"/>
+                <field name="can_edit_times" invisible="1"/>
             </xpath>
             <xpath expr="//field[@name='check_in']" position="attributes">
                 <attribute name="invisible">is_absent</attribute>
+                <attribute name="readonly">not can_edit_times</attribute>
             </xpath>
             <xpath expr="//field[@name='check_in']" position="after">
                 <field name="check_in"
                        string="Check In"
                        widget="datetime"
                        invisible="not is_absent"
-                       readonly="0"/>
+                       readonly="not can_edit_times"/>
+            </xpath>
+            <xpath expr="//field[@name='check_out']" position="attributes">
+                <attribute name="readonly">not can_edit_times</attribute>
             </xpath>
 
             <!-- Add Break fields after check_out -->
