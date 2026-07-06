@@ -1100,10 +1100,12 @@ class AttendanceDevice(models.Model):
             if on_leave:
                 threshold_m = work_start_minutes
             elif eff_end > eff_start:                            # day shift
-                # A no-show becomes Absence once he's past the morning cutoff
-                # (shift start + Absence matinale delay) with still no punch.
-                morning_delay = int((config.absence_morning_delay or 2.5) * 60)
-                threshold_m   = work_start_minutes + morning_delay
+                # A no-show becomes Absence once he's past shift start + the late
+                # tolerance with still no punch. If he later punches, the real
+                # record replaces this placeholder and is classed Retard (late) or,
+                # past shift start + Absence matinale delay, Absence matinale.
+                tolerance   = config.late_tolerance_minutes or 30
+                threshold_m = work_start_minutes + tolerance
             else:                                                # night shift
                 threshold_m = work_start_minutes + extra_threshold
 
