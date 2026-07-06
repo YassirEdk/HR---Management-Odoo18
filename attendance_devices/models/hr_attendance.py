@@ -261,6 +261,13 @@ class HrAttendance(models.Model):
         store=True,
         help='True when the record carries any absence status (drives the Résolut checkbox).',
     )
+    locked_status_codes = fields.Char(
+        string='Locked statuses',
+        copy=False,
+        help='Comma-separated accumulation of every status code this record has '
+             'ever earned. Statuses are additive and permanent: a later edit or '
+             'recompute can only add codes here, never remove one.',
+    )
 
     status_ids = fields.Many2many(
         'attendance.status',
@@ -426,47 +433,38 @@ class HrAttendance(models.Model):
                 if ci_date.weekday() == 5 and not (cfg and cfg.works_saturday):
                     codes.discard('absence_afternoon')
 
-            # Résolut. When resolved, the row keeps its absence badge (matinale /
-            # après-midi / Absence) + Résolut, but for grouping/filtering it lives
-            # only under Résolut (badge_codes vs group_codes).
-            absences = codes & set(self._ABSENCE_CODES)
-            att.has_absence = bool(absences)
-            badge_codes = set(codes)
-            group_codes = set(codes)
-
-            # ── Filter/group refinements ──────────────────────────────────
-            # Badges (badge_codes) always keep showing every real status; only
-            # the grouping/filtering dimension (group_codes) is cleaned up so a
-            # record doesn't clutter a "healthy" filter when it also has a
-            # problem.
+            # ── Additive, permanent statuses ─────────────────────────────────
+            # Statuses only ever ADD. A record keeps every status it has ever
+            # earned; a later edit or recompute can never remove one. e.g. a
+            # record classed Absence matinale at 12:30, edited to 08:30, ends up
+            # [Absence matinale, À l'heure] — the morning absence is never lost.
             #
-            # 1) À l'heure / Retard + forgotten checkout → filter under Missing
-            #    Checkout only, not À l'heure / Retard. The row keeps both badges.
-            if 'missing_checkout' in group_codes:
-                group_codes.discard('on_time')
-                group_codes.discard('late')
-            # 1b) MORNING absence + forgotten checkout → reported as Missing
-            #     Checkout ONLY (badge + grouping). The employee arrived in the
-            #     afternoon and forgot to punch out, so the morning gap is not
-            #     shown or grouped separately, and the row is no longer treated
-            #     as a resolvable absence.
-            if 'missing_checkout' in codes and 'absence_morning' in codes:
-                badge_codes.discard('absence_morning')
-                group_codes.discard('absence_morning')
-                absences = absences - {'absence_morning'}
-                att.has_absence = bool(absences)
-            # 2) A FULL-DAY or AFTERNOON absence combined with a missing checkout
-            #    — or a lone-punch anomalie — is an anomaly: filter it under
-            #    Anomalie only (not Absence / Missing Checkout). Badges still show
-            #    what happened.
-            hard_absences = codes & {'absence_afternoon', 'absence_full'}
-            if 'anomalie' in codes or (hard_absences and 'missing_checkout' in codes):
-                badge_codes.add('anomalie')
-                group_codes = {'anomalie'}
+            # Derived anomalie: a hard absence (full/afternoon) that also forgot a
+            # checkout reads as an Anomalie — add it too (still purely additive).
+            if (codes & {'absence_afternoon', 'absence_full'}) and 'missing_checkout' in codes:
+                codes.add('anomalie')
 
-            # Résolut wins: a resolved absence lives only under Résolut.
+            # Accumulate into the stored set. 'resolved' is driven by the
+            # is_resolved checkbox, so it is never accumulated here.
+            locked = set((att.locked_status_codes or '').split(',')) - {''}
+            locked |= codes - {'resolved'}
+            new_locked = ','.join(sorted(locked))
+            if (att.locked_status_codes or '') != new_locked:
+                att.locked_status_codes = new_locked
+
+            # A record is "an absence" (drives the Résolut checkbox) if it has
+            # EVER carried an absence status.
+            absences = locked & set(self._ABSENCE_CODES)
+            att.has_absence = bool(absences)
+
+            # Badges and grouping both carry the full accumulated set …
+            badge_codes = set(locked)
+            group_codes = set(locked)
+
+            # … except Résolut: ticking it keeps every badge (+ Résolut) but
+            # collapses grouping/filtering to the Résolut section only.
             if att.is_resolved and att.has_absence:
-                badge_codes = absences | {'resolved'}
+                badge_codes.add('resolved')
                 group_codes = {'resolved'}
 
             def to_recs(cs):
@@ -486,7 +484,9 @@ class HrAttendance(models.Model):
         recs.invalidate_recordset()
         self.env.add_to_compute(self._fields['status_ids'], recs)
         self.env.add_to_compute(self._fields['status_bucket_ids'], recs)
-        recs.flush_recordset(['status_ids', 'status_bucket_ids'])
+        # locked_status_codes is pinned as a side effect of _compute_statuses;
+        # flush it too so the sticky pin survives the raw-SQL sync path.
+        recs.flush_recordset(['status_ids', 'status_bucket_ids', 'locked_status_codes'])
 
     @api.onchange('check_in')
     def _onchange_check_in_clear_absent(self):
