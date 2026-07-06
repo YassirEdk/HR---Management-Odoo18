@@ -444,22 +444,34 @@ class HrAttendance(models.Model):
             if (codes & {'absence_afternoon', 'absence_full'}) and 'missing_checkout' in codes:
                 codes.add('anomalie')
 
-            # Accumulate into the stored set. 'resolved' is driven by the
-            # is_resolved checkbox, so it is never accumulated here.
-            locked = set((att.locked_status_codes or '').split(',')) - {''}
-            locked |= codes - {'resolved'}
+            # Presence dimension (À l'heure / Retard) is the exception: it always
+            # reflects the CURRENT check-in time and the two are mutually
+            # exclusive. Editing an 08:30 (À l'heure) record to 10:00 turns it
+            # into Retard and drops À l'heure. Every other status is additive and
+            # permanent, so a kept Absence matinale simply shows next to it
+            # (e.g. [Absence matinale, Retard]).
+            transient = codes & {'on_time', 'late'}
+
+            # Accumulate the permanent statuses. 'resolved' is driven by the
+            # is_resolved checkbox and on_time/late are transient, so none of
+            # those are stored here.
+            locked = set((att.locked_status_codes or '').split(',')) - {'', 'on_time', 'late'}
+            locked |= codes - {'resolved', 'on_time', 'late'}
             new_locked = ','.join(sorted(locked))
             if (att.locked_status_codes or '') != new_locked:
                 att.locked_status_codes = new_locked
+
+            # Displayed set = permanent history + the current presence status.
+            display = locked | transient
 
             # A record is "an absence" (drives the Résolut checkbox) if it has
             # EVER carried an absence status.
             absences = locked & set(self._ABSENCE_CODES)
             att.has_absence = bool(absences)
 
-            # Badges and grouping both carry the full accumulated set …
-            badge_codes = set(locked)
-            group_codes = set(locked)
+            # Badges and grouping both carry that set …
+            badge_codes = set(display)
+            group_codes = set(display)
 
             # … except Résolut: ticking it keeps every badge (+ Résolut) but
             # collapses grouping/filtering to the Résolut section only.
