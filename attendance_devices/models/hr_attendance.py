@@ -478,6 +478,11 @@ class HrAttendance(models.Model):
             # Displayed set = permanent history + the current presence status.
             display = locked | transient
 
+            # A full-day Absence subsumes the partial ones: when it is present,
+            # drop Absence matinale / Absence après-midi (redundant).
+            if 'absence_full' in display:
+                display -= {'absence_morning', 'absence_afternoon'}
+
             # A record is "an absence" (drives the Résolut checkbox) if it has
             # EVER carried an absence status.
             absences = locked & set(self._ABSENCE_CODES)
