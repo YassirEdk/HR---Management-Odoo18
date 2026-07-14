@@ -10,6 +10,7 @@
         "security/ir.model.access.csv",
         "data/attendance_status_data.xml",
         "views/attendance_device_views.xml",
+        "views/attendance_sync_log_views.xml",
         "data/attendance_device_cron.xml",
         "views/filter_attendance.xml",
         "views/filter_attendance_dept.xml",

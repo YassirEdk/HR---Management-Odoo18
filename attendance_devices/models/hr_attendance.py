@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 from datetime import timedelta, datetime, time
 from zoneinfo import ZoneInfo
 import logging
@@ -255,6 +256,100 @@ class HrAttendance(models.Model):
         default=False,
         help='Manually mark an absence as resolved — adds the Résolut status.',
     )
+
+    # ── Traitement de la non-conformité (ISO 9001 §8.7.2 / §10.2) ────────────
+    # An attendance record in anomaly is a non-conforming output. §8.7.2 requires
+    # retaining documented information that describes the nonconformity, the
+    # action taken, any concession granted, and IDENTIFIES THE AUTHORITY that
+    # decided. A bare is_resolved boolean satisfies none of those.
+    #
+    # resolution_type is a Selection, not free text, on purpose: §10.2.1 b) asks
+    # to determine the CAUSES and look for similar nonconformities. That analysis
+    # is only possible if the reason is a countable category — "40% of our
+    # anomalies are Panne pointeuse on the Entrepôt device" is an actionable
+    # root cause; a text field is not.
+    resolution_type = fields.Selection(
+        selection=[
+            ('badge_forgotten',    'Oubli de badge'),
+            ('external_mission',   'Mission externe / déplacement'),
+            ('device_failure',     'Panne ou indisponibilité de la pointeuse'),
+            ('leave_not_recorded', 'Congé ou autorisation non saisi'),
+            ('justified_absence',  'Absence justifiée (certificat, événement familial…)'),
+            ('waiver',             'Acceptation par dérogation'),
+            ('other',              'Autre (préciser)'),
+        ],
+        string='Motif de résolution',
+        copy=False,
+        help='Cause de la non-conformité. Sert à l’analyse des causes récurrentes '
+             '(ISO 9001 §10.2) : c’est cette catégorie, et non un texte libre, qui '
+             'permet de décider d’une action corrective.',
+    )
+    resolution_comment = fields.Text(
+        string='Commentaire de résolution',
+        copy=False,
+    )
+    resolved_by = fields.Many2one(
+        'res.users',
+        string='Résolu par',
+        readonly=True,
+        copy=False,
+        help='Autorité ayant décidé du traitement (ISO 9001 §8.7.2 d).',
+    )
+    resolved_date = fields.Datetime(
+        string='Date de résolution',
+        readonly=True,
+        copy=False,
+    )
+    resolution_delay_hours = fields.Float(
+        string='Délai de résolution (h)',
+        compute='_compute_resolution_delay',
+        store=True,
+        help='Écart entre le pointage concerné et sa résolution. Alimente '
+             'l’indicateur « délai moyen de traitement des anomalies » (§9.1).',
+    )
+
+    @api.depends('resolved_date', 'check_in')
+    def _compute_resolution_delay(self):
+        for att in self:
+            if att.resolved_date and att.check_in:
+                att.resolution_delay_hours = (
+                    att.resolved_date - att.check_in).total_seconds() / 3600.0
+            else:
+                att.resolution_delay_hours = 0.0
+
+    @api.constrains('is_resolved', 'resolution_type', 'resolution_comment')
+    def _check_resolution_documented(self):
+        for att in self:
+            if not att.is_resolved:
+                continue
+            if not att.resolution_type:
+                raise ValidationError(
+                    "Un motif de résolution est obligatoire pour marquer une "
+                    "anomalie comme résolue (ISO 9001 §8.7.2 : la nature de la "
+                    "non-conformité et l’action menée doivent être documentées)."
+                )
+            if att.resolution_type == 'other' and not (att.resolution_comment or '').strip():
+                raise ValidationError(
+                    "Le motif « Autre » exige un commentaire décrivant le "
+                    "traitement appliqué."
+                )
+
+    def write(self, vals):
+        # Stamp the authority and the date the moment the record is resolved;
+        # un-ticking Résolut sends it back to untreated, so the (now void)
+        # resolution data is cleared rather than left dangling.
+        if 'is_resolved' in vals:
+            if vals['is_resolved']:
+                vals.setdefault('resolved_by', self.env.uid)
+                vals.setdefault('resolved_date', fields.Datetime.now())
+            else:
+                vals.update({
+                    'resolved_by':        False,
+                    'resolved_date':      False,
+                    'resolution_type':    False,
+                    'resolution_comment': False,
+                })
+        return super().write(vals)
     has_absence = fields.Boolean(
         string='Has absence',
         compute='_compute_statuses',

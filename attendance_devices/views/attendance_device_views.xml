@@ -15,14 +15,34 @@
                 </header>
                 <sheet>
                     <field name="is_device_admin" invisible="1"/>
-                    <group string="Connexion">
-                        <field name="name" readonly="not is_device_admin"/>
-                        <field name="ip_address" readonly="not is_device_admin"/>
-                        <field name="port" readonly="not is_device_admin"/>
-                        <field name="location" readonly="not is_device_admin"/>
-                        <field name="timezone" readonly="not is_device_admin"/>
-                        <field name="department_type" readonly="not is_device_admin"/>
-                        <field name="last_sync" readonly="not is_device_admin"/>
+                    <widget name="web_ribbon" title="Hors service" bg_color="text-bg-danger"
+                            invisible="device_state != 'out'"/>
+                    <group>
+                        <group string="Connexion">
+                            <field name="name" readonly="not is_device_admin"/>
+                            <field name="ip_address" readonly="not is_device_admin"/>
+                            <field name="port" readonly="not is_device_admin"/>
+                            <field name="location" readonly="not is_device_admin"/>
+                            <field name="timezone" readonly="not is_device_admin"/>
+                            <field name="department_type" readonly="not is_device_admin"/>
+                            <field name="last_sync" readonly="not is_device_admin"/>
+                        </group>
+                        <!-- ISO 9001 §7.1.5.2 : identification de l'instrument de
+                             mesure et preuve de sa vérification périodique. -->
+                        <group string="Instrument de mesure (ISO 9001 §7.1.5)">
+                            <field name="serial_number" readonly="not is_device_admin"/>
+                            <field name="device_model" readonly="not is_device_admin"/>
+                            <field name="responsible_id"/>
+                            <field name="device_state" readonly="not is_device_admin"/>
+                            <field name="clock_drift_tolerance" readonly="not is_device_admin"/>
+                            <field name="clock_status"
+                                   decoration-danger="clock_status == 'drift'"
+                                   decoration-success="clock_status == 'ok'"
+                                   decoration-muted="clock_status == 'unknown'"
+                                   widget="badge"/>
+                            <field name="last_clock_drift"/>
+                            <field name="last_clock_check"/>
+                        </group>
                     </group>
                     <group string="Paramètres de shift">
                         <field name="night_shift_cutoff" widget="float_time"/>
@@ -31,6 +51,23 @@
                         <field name="absence_lookback_days"/>
                         <field name="late_threshold_minutes" string="Absent après (minutes après le début du shift)"/>
                     </group>
+                    <notebook>
+                        <page string="Journal de synchronisation">
+                            <field name="sync_log_ids" readonly="1">
+                                <list decoration-danger="state == 'failed'"
+                                      decoration-warning="state == 'partial'">
+                                    <field name="sync_date"/>
+                                    <field name="state"/>
+                                    <field name="trigger"/>
+                                    <field name="records_read"/>
+                                    <field name="audit_issues"/>
+                                    <field name="unlinked_badges"/>
+                                    <field name="clock_drift_seconds"/>
+                                    <field name="error_message" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -52,6 +89,11 @@
                 <field name="port"/>
                 <field name="location"/>
                 <field name="last_sync"/>
+                <field name="clock_status" widget="badge"
+                       decoration-danger="clock_status == 'drift'"
+                       decoration-success="clock_status == 'ok'"
+                       decoration-muted="clock_status == 'unknown'"/>
+                <field name="device_state"/>
             </list>
         </field>
     </record>

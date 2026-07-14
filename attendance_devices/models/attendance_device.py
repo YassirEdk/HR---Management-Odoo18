@@ -9,7 +9,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 # Sentinel: distinguishes "caller did not prefetch" from "prefetched a failed
-# read (None)" in _sync_device_attendance(records=...).
+# read" in _sync_device_attendance(read=...).
 _UNSET = object()
 
 
@@ -239,6 +239,79 @@ class AttendanceDevice(models.Model):
         help='Only sync employees from this department. Use "All" to sync everyone.',
     )
 
+    # ─────────────────────────────────────────────────────────────
+    #  METROLOGY (ISO 9001 §7.1.5)
+    # ─────────────────────────────────────────────────────────────
+    # The clock is a measuring instrument: its readings decide who is late and
+    # how many hours get paid. §7.1.5.2 requires it to be identified, verified
+    # at defined intervals against a traceable reference, and protected against
+    # adjustments that would invalidate the results.
+    serial_number = fields.Char(
+        string='Numéro de série',
+        help='Identification unique de l’instrument de mesure (ISO 9001 §7.1.5.2 b).',
+    )
+    device_model = fields.Char(string='Modèle')
+    responsible_id = fields.Many2one(
+        'res.users',
+        string='Responsable',
+        help='Personne responsable du maintien en état de la pointeuse.',
+    )
+    device_state = fields.Selection(
+        selection=[
+            ('in_service',  'En service'),
+            ('maintenance', 'En maintenance'),
+            ('out',         'Hors service'),
+        ],
+        string='État',
+        default='in_service',
+        required=True,
+        help='État de l’instrument. Une pointeuse hors service n’est plus '
+             'synchronisée, mais les absences continuent d’être générées.',
+    )
+    clock_drift_tolerance = fields.Integer(
+        string='Tolérance de dérive (s)',
+        default=60,
+        help='Écart maximal admis entre l’horloge de la pointeuse et l’heure de '
+             'référence du serveur. Au-delà, la pointeuse est déclarée non '
+             'conforme et le sync est journalisé en écart.',
+    )
+    last_clock_check = fields.Datetime(
+        string='Dernière vérification d’horloge',
+        readonly=True,
+    )
+    last_clock_drift = fields.Float(
+        string='Dernière dérive (s)',
+        digits=(16, 1),
+        readonly=True,
+        help='Positif = la pointeuse avance sur l’heure de référence.',
+    )
+    clock_status = fields.Selection(
+        selection=[
+            ('ok',      'Conforme'),
+            ('drift',   'Dérive hors tolérance'),
+            ('unknown', 'Non vérifiée'),
+        ],
+        string='État de l’horloge',
+        compute='_compute_clock_status',
+        store=True,
+    )
+    sync_log_ids = fields.One2many(
+        'attendance.device.sync.log',
+        'device_id',
+        string='Journal de synchronisation',
+        readonly=True,
+    )
+
+    @api.depends('last_clock_check', 'last_clock_drift', 'clock_drift_tolerance')
+    def _compute_clock_status(self):
+        for rec in self:
+            if not rec.last_clock_check:
+                rec.clock_status = 'unknown'
+            elif abs(rec.last_clock_drift or 0.0) > (rec.clock_drift_tolerance or 60):
+                rec.clock_status = 'drift'
+            else:
+                rec.clock_status = 'ok'
+
     # Technical flag used by the form view: only admins (Settings access) may
     # edit the connection fields. HR users edit only the absence/shift settings.
     is_device_admin = fields.Boolean(
@@ -272,19 +345,34 @@ class AttendanceDevice(models.Model):
         out as "older than last_sync" and lost forever.
         """
         self.ensure_one()
-        if not self.ip_address or not self.port:
-            return None
-        return self._read_zk_punches(self.ip_address, self.port, self.timezone, self.name)
+        return self._read_zk_device(
+            self.ip_address, self.port, self.timezone, self.name)['records']
 
     @staticmethod
-    def _read_zk_punches(ip_address, port, timezone, name=''):
+    def _read_zk_device(ip_address, port, timezone, name=''):
         """Pure network read of one ZK device — NO ORM / cursor access, so it is
-        safe to run in a worker thread. Takes plain values, returns a list of
-        {badge_id, timestamp} dicts on success, or None on a failed read."""
+        safe to run in a worker thread. Takes plain values, returns a dict:
+
+            records     list of {badge_id, timestamp} on success, None on a
+                        FAILED read (unreachable / timeout / partial).
+            drift       device clock minus server reference, in seconds
+                        (positive = the device runs ahead). None if unread.
+            device_time the device's own clock, as naive UTC.
+            error       human-readable reason when the read failed.
+
+        The clock is read on every connection because the device is a measuring
+        instrument: ISO 9001 §7.1.5.2 requires it to be verified against a
+        traceable reference (here the NTP-synced server) at defined intervals,
+        and an undetected drift silently falsifies every Retard/Absence status.
+        """
+        result = {'records': None, 'drift': None, 'device_time': None, 'error': ''}
+
         if not ip_address or not port:
-            return None
+            result['error'] = "Adresse IP ou port non renseigné."
+            return result
 
         TZ      = ZoneInfo(timezone)
+        UTC     = ZoneInfo("UTC")
         zk      = ZK(ip_address, port=port, timeout=10, ommit_ping=True)
         conn    = None
         records = []
@@ -293,6 +381,21 @@ class AttendanceDevice(models.Model):
             _logger.info("[ZK] Connecting to %s:%s", ip_address, port)
             conn = zk.connect()
             conn.disable_device()
+
+            # ── Clock verification (ISO 9001 §7.1.5.2) ───────────────────────
+            # Best-effort: a device that refuses get_time() must not abort the
+            # punch read — the drift simply stays unknown for this cycle.
+            try:
+                dev_time = conn.get_time()
+            except Exception:
+                dev_time = None
+                _logger.warning("[ZK] %s: clock could not be read", name or ip_address)
+            if dev_time is not None:
+                dev_aware = (dev_time.replace(tzinfo=TZ)
+                             if dev_time.tzinfo is None else dev_time)
+                result['device_time'] = dev_aware.astimezone(UTC).replace(tzinfo=None)
+                result['drift'] = (dev_aware - datetime.now(UTC)).total_seconds()
+
             for a in (conn.get_attendance() or []):
                 user_id = getattr(a, "user_id", None)
                 ts      = getattr(a, "timestamp", None)
@@ -304,7 +407,8 @@ class AttendanceDevice(models.Model):
             _logger.info("[ZK] %s: %s records fetched", name or ip_address, len(records))
         except Exception as e:
             _logger.exception("[ZK] Connection error for %s: %s", name or ip_address, e)
-            return None
+            result['error'] = str(e) or e.__class__.__name__
+            return result
         finally:
             if conn:
                 try:
@@ -312,39 +416,118 @@ class AttendanceDevice(models.Model):
                     conn.disconnect()
                 except Exception:
                     pass
-        return records
+
+        result['records'] = records
+        return result
 
     @api.model
     def _parallel_read_devices(self, devices):
         """Read several devices concurrently (network-bound). Extracts plain
         connection values in the main thread, then fans the socket reads out to
         a thread pool — the workers never touch the ORM. Returns
-        {device_id: records_or_None}."""
+        {device_id: read_result_dict} (see _read_zk_device)."""
         specs = [(d.id, d.ip_address, d.port, d.timezone, d.name) for d in devices]
         if len(specs) <= 1:
-            return {sid: self._read_zk_punches(ip, port, tz, nm)
+            return {sid: self._read_zk_device(ip, port, tz, nm)
                     for sid, ip, port, tz, nm in specs}
 
         results = {}
         with ThreadPoolExecutor(max_workers=min(len(specs), 8)) as pool:
             futures = {
-                pool.submit(self._read_zk_punches, ip, port, tz, nm): sid
+                pool.submit(self._read_zk_device, ip, port, tz, nm): sid
                 for sid, ip, port, tz, nm in specs
             }
             for fut in futures:
                 sid = futures[fut]
                 try:
                     results[sid] = fut.result()
-                except Exception:
+                except Exception as e:
                     _logger.exception("[ZK] Parallel read failed for device %s", sid)
-                    results[sid] = None
+                    results[sid] = {'records': None, 'drift': None,
+                                    'device_time': None, 'error': str(e)}
         return results
+
+    # ---------------------------------------------------------
+    # SYNC EVIDENCE (ISO 9001 §9.1.1 / §7.1.5.2)
+    # ---------------------------------------------------------
+    def _record_clock_check(self, read):
+        """Store this cycle's clock verification on the device and warn when the
+        drift exceeds the tolerance — the device is then a non-conforming
+        measuring instrument and every timestamp it produced is suspect."""
+        self.ensure_one()
+        drift = read.get('drift')
+        if drift is None:
+            return
+        self.sudo().write({
+            'last_clock_check': fields.Datetime.now(),
+            'last_clock_drift': drift,
+        })
+        if abs(drift) > (self.clock_drift_tolerance or 60):
+            _logger.warning(
+                "[METROLOGY] %s: clock drift %.1fs exceeds the %ss tolerance — "
+                "timestamps produced by this device are suspect.",
+                self.name, drift, self.clock_drift_tolerance or 60,
+            )
+
+    def _log_sync(self, read, audit=None, unlinked=None, trigger='cron'):
+        """Persist one sync cycle as an evidence record.
+
+        Written with sudo() so an HR user can trigger a sync without being
+        granted create rights on the journal — the evidence stays read-only for
+        everyone but Settings (ISO 9001 §7.5.3.2: records protected against
+        unintended alteration).
+        """
+        self.ensure_one()
+        audit    = audit or {}
+        unlinked = sorted(unlinked or [])
+        drift    = read.get('drift')
+        tol      = self.clock_drift_tolerance or 60
+
+        if drift is None:
+            clock_status = 'unknown'
+        elif abs(drift) > tol:
+            clock_status = 'drift'
+        else:
+            clock_status = 'ok'
+
+        if read.get('records') is None:
+            state = 'failed'
+        elif audit.get('issues') or unlinked or clock_status == 'drift':
+            state = 'partial'
+        else:
+            state = 'success'
+
+        return self.env['attendance.device.sync.log'].sudo().create({
+            'device_id':           self.id,
+            'sync_date':           fields.Datetime.now(),
+            'state':               state,
+            'trigger':             trigger,
+            'user_id':             self.env.uid,
+            'records_read':        len(read.get('records') or []),
+            'badges_seen':         audit.get('badges', 0),
+            'unlinked_badges':     len(unlinked),
+            'unlinked_badge_ids':  ', '.join(unlinked),
+            'audit_ok':            audit.get('ok', 0),
+            'audit_issues':        len(audit.get('issues') or []),
+            'audit_detail':        '\n'.join(audit.get('issues') or []),
+            'clock_drift_seconds': drift or 0.0,
+            'clock_status':        clock_status,
+            'device_time':         read.get('device_time'),
+            'error_message':       read.get('error') or '',
+        })
 
     # ---------------------------------------------------------
     # CORE SYNC LOGIC
     # ---------------------------------------------------------
-    def _sync_device_attendance(self, cron=False, generate_absences=True, records=_UNSET):
+    def _sync_device_attendance(self, cron=False, generate_absences=True, read=_UNSET,
+                                trigger=None):
         self.ensure_one()
+
+        # ``cron`` drives the RETURN VALUE (wizard vs bool); ``trigger`` records
+        # in the journal who actually initiated the cycle. The "Sync selected"
+        # button passes cron=True (it builds its own wizard) yet is a manual run.
+        if trigger is None:
+            trigger = 'cron' if cron else 'manual'
 
         TZ            = ZoneInfo("Africa/Casablanca")
         UTC           = ZoneInfo("UTC")
@@ -356,10 +539,25 @@ class AttendanceDevice(models.Model):
         result        = []
         cutoff        = self.night_shift_cutoff or 0
 
-        # ``records`` may be pre-fetched by the caller (parallel read). Only hit
-        # the device here when it wasn't supplied.
-        if records is _UNSET:
-            records = self.get_data_from_device()
+        # ``read`` may be pre-fetched by the caller (parallel read). Only hit the
+        # device here when it wasn't supplied.
+        if read is _UNSET:
+            read = self._read_zk_device(
+                self.ip_address, self.port, self.timezone, self.name)
+        if not read:
+            read = {'records': None, 'drift': None, 'device_time': None,
+                    'error': "Aucun résultat de lecture pour cette pointeuse."}
+        records = read.get('records')
+
+        # Clock verification is independent of the punches: record it (and warn
+        # on drift) before anything else, so a device that answers but has a bad
+        # clock is flagged even on a cycle with no new punches.
+        self._record_clock_check(read)
+        if self.clock_status == 'drift':
+            result.append(
+                f"⏰ Horloge hors tolérance : dérive de {self.last_clock_drift:.0f}s "
+                f"(tolérance {self.clock_drift_tolerance}s) — pointages à vérifier."
+            )
 
         # Failed read (device unreachable / timeout / partial). Do NOT advance
         # last_sync — otherwise punches made during the outage become "older than
@@ -372,6 +570,7 @@ class AttendanceDevice(models.Model):
             # punches made during the outage aren't dropped on the next run.
             if generate_absences:
                 self._generate_absences(result)
+            self._log_sync(read, trigger=trigger)
             if not cron:
                 return self._open_result_wizard(
                     ["⚠️ Could not read from device — punches unchanged, absences generated."] + result
@@ -384,6 +583,7 @@ class AttendanceDevice(models.Model):
             _logger.info("[SYNC] No last_sync set — initializing to now, skipping historical data.")
             if generate_absences:
                 self._generate_absences(result)
+            self._log_sync(read, trigger=trigger)
             if not cron:
                 return self._open_result_wizard(["First sync — timestamp initialized. Sync again to pull new data."])
             return True
@@ -432,7 +632,8 @@ class AttendanceDevice(models.Model):
             if generate_absences:
                 self.env.cr.execute('SELECT 1')
                 self._generate_absences(result)
-            self._audit_today_pushes(grouped_by_day, today_sday, cutoff, result)
+            audit = self._audit_today_pushes(grouped_by_day, today_sday, cutoff, result)
+            self._log_sync(read, audit=audit, trigger=trigger)
             if not cron:
                 return self._open_result_wizard(["No new records since last sync."] + result)
             return True
@@ -447,9 +648,14 @@ class AttendanceDevice(models.Model):
         employees    = Employee.search(emp_domain)
         emp_by_badge = {e.badge_id: e for e in employees}
 
-        for badge in badges_to_process:
-            if badge not in emp_by_badge:
-                _logger.warning("[SYNC] Badge %s not linked to any employee", badge)
+        # A badge that punched but matches no employee is a REAL punch that will
+        # never become an attendance record — a master-data non-conformity
+        # (ISO 9001 §8.5.2). It used to vanish into the server log; it is now
+        # carried into the sync journal so HR actually sees it.
+        unlinked_badges = {b for b in badges_to_process if b not in emp_by_badge}
+        for badge in sorted(unlinked_badges):
+            _logger.warning("[SYNC] Badge %s not linked to any employee", badge)
+            result.append(f"⚠️ Badge {badge} : pointages ignorés — aucun employé rattaché.")
 
         # For each badge, collect ALL timestamps for the shift-days we must
         # (re)build: days that received new punches, plus today's shift-day for
@@ -780,9 +986,10 @@ class AttendanceDevice(models.Model):
             self._generate_absences(result)
 
         # Post-sync audit: confirm every push of the day was created & processed.
-        self._audit_today_pushes(grouped_by_day, today_sday, cutoff, result)
+        audit = self._audit_today_pushes(grouped_by_day, today_sday, cutoff, result)
 
         self.last_sync = now_utc_naive
+        self._log_sync(read, audit=audit, unlinked=unlinked_badges, trigger=trigger)
         if not cron:
             return self._open_result_wizard(result)
         return True
@@ -1283,7 +1490,10 @@ class AttendanceDevice(models.Model):
                 },
             }
         try:
-            devices = self.search([])
+            # A device declared out of service is not read (its clock is not a
+            # valid measuring reference). Absences keep being generated for its
+            # department by cron_generate_absences.
+            devices = self.search([('device_state', '!=', 'out')])
             result  = []
             # Read every device in parallel (network I/O), then process the
             # results serially with the same per-device logic as before.
@@ -1292,7 +1502,8 @@ class AttendanceDevice(models.Model):
                 try:
                     with self.env.cr.savepoint():
                         device._sync_device_attendance(
-                            cron=True, records=prefetched.get(device.id))
+                            cron=True, trigger='manual',
+                            read=prefetched.get(device.id))
                     result.append(f"✅ {device.name} — synced")
                 except Exception as e:
                     result.append(f"❌ {device.name} — sync ERROR: {e}")
@@ -1332,7 +1543,8 @@ class AttendanceDevice(models.Model):
                 try:
                     with self.env.cr.savepoint():
                         device._sync_device_attendance(
-                            cron=True, records=prefetched.get(device.id))
+                            cron=True, trigger='manual',
+                            read=prefetched.get(device.id))
                     result.append(f"✅ {device.name} — synchronisé")
                 except Exception as e:
                     result.append(f"❌ {device.name} — ERREUR : {e}")
@@ -1352,7 +1564,7 @@ class AttendanceDevice(models.Model):
             _logger.info("[CRON] Sync already running — skipping this cycle")
             return
         try:
-            devices = self.search([])
+            devices = self.search([('device_state', '!=', 'out')])
             # Read every device in parallel (network I/O) before processing, so
             # the 5 device reads overlap instead of running back-to-back.
             prefetched = self._parallel_read_devices(devices)
@@ -1362,8 +1574,8 @@ class AttendanceDevice(models.Model):
                         # Same process as the manual "Sync All" button: pull punches
                         # AND generate absences in one pass, under the advisory lock.
                         device._sync_device_attendance(
-                            cron=True, generate_absences=True,
-                            records=prefetched.get(device.id))
+                            cron=True, generate_absences=True, trigger='cron',
+                            read=prefetched.get(device.id))
                 except Exception:
                     _logger.exception("[CRON] Sync failed for %s", device.name)
         finally:

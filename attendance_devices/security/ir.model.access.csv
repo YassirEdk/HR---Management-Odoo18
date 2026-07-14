@@ -12,3 +12,7 @@ access_attendance_status_user,attendance.status user,model_attendance_status,bas
 access_attendance_status_admin,attendance.status admin,model_attendance_status,base.group_system,1,1,1,1
 access_attendance_status_bucket_user,attendance.status.bucket user,model_attendance_status_bucket,base.group_user,1,0,0,0
 access_attendance_status_bucket_admin,attendance.status.bucket admin,model_attendance_status_bucket,base.group_system,1,1,1,1
+access_attendance_sync_log_hr,attendance.device.sync.log hr,model_attendance_device_sync_log,attendance_devices.group_attendance_device_hr,1,0,0,0
+access_attendance_sync_log_emp_hr,attendance.device.sync.log emp hr,model_attendance_device_sync_log,employee.group_employee_hr,1,0,0,0
+access_attendance_sync_log_device_admin,attendance.device.sync.log device admin,model_attendance_device_sync_log,attendance_devices.group_attendance_device_admin,1,0,0,0
+access_attendance_sync_log_system,attendance.device.sync.log system,model_attendance_device_sync_log,base.group_system,1,1,1,1

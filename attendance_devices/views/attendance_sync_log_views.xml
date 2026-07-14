@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================= SYNC LOG LIST ================= -->
+    <record id="view_attendance_sync_log_list" model="ir.ui.view">
+        <field name="name">attendance.device.sync.log.list</field>
+        <field name="model">attendance.device.sync.log</field>
+        <field name="arch" type="xml">
+            <list string="Journal de synchronisation" create="false" edit="false"
+                  decoration-danger="state == 'failed'"
+                  decoration-warning="state == 'partial'"
+                  decoration-muted="state == 'success'">
+                <field name="sync_date"/>
+                <field name="device_id"/>
+                <field name="state"/>
+                <field name="trigger"/>
+                <field name="records_read" sum="Pointages lus"/>
+                <field name="badges_seen"/>
+                <field name="audit_ok"/>
+                <field name="audit_issues" sum="Écarts"/>
+                <field name="unlinked_badges" sum="Badges non rattachés"/>
+                <field name="clock_drift_seconds"/>
+                <field name="clock_status"/>
+                <field name="user_id" optional="hide"/>
+                <field name="error_message" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================= SYNC LOG FORM (lecture seule) ================= -->
+    <record id="view_attendance_sync_log_form" model="ir.ui.view">
+        <field name="name">attendance.device.sync.log.form</field>
+        <field name="model">attendance.device.sync.log</field>
+        <field name="arch" type="xml">
+            <form string="Synchronisation" create="false" edit="false">
+                <sheet>
+                    <group>
+                        <group string="Cycle">
+                            <field name="device_id"/>
+                            <field name="sync_date"/>
+                            <field name="state"/>
+                            <field name="trigger"/>
+                            <field name="user_id"/>
+                        </group>
+                        <group string="Vérification de l'horloge (ISO 9001 §7.1.5.2)">
+                            <field name="clock_status"/>
+                            <field name="clock_drift_seconds"/>
+                            <field name="device_time"/>
+                        </group>
+                    </group>
+                    <group string="Pointages lus">
+                        <group>
+                            <field name="records_read"/>
+                            <field name="badges_seen"/>
+                        </group>
+                        <group>
+                            <field name="unlinked_badges"/>
+                            <field name="unlinked_badge_ids" invisible="not unlinked_badges"/>
+                        </group>
+                    </group>
+                    <group string="Auto-contrôle (ISO 9001 §9.1.1)">
+                        <field name="audit_ok"/>
+                        <field name="audit_issues"/>
+                        <field name="audit_detail" invisible="not audit_issues"/>
+                    </group>
+                    <group string="Erreur" invisible="not error_message">
+                        <field name="error_message" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= SYNC LOG SEARCH ================= -->
+    <record id="view_attendance_sync_log_search" model="ir.ui.view">
+        <field name="name">attendance.device.sync.log.search</field>
+        <field name="model">attendance.device.sync.log</field>
+        <field name="arch" type="xml">
+            <search string="Journal de synchronisation">
+                <field name="device_id"/>
+                <field name="sync_date"/>
+                <filter name="filter_failed" string="Échecs"
+                        domain="[('state', '=', 'failed')]"/>
+                <filter name="filter_partial" string="Écarts détectés"
+                        domain="[('state', '=', 'partial')]"/>
+                <filter name="filter_clock_drift" string="Horloge hors tolérance"
+                        domain="[('clock_status', '=', 'drift')]"/>
+                <filter name="filter_unlinked" string="Badges non rattachés"
+                        domain="[('unlinked_badges', '>', 0)]"/>
+                <separator/>
+                <filter name="filter_today" string="Aujourd'hui"
+                        domain="[('sync_date', '>=', datetime.datetime.combine(context_today(), datetime.time(0,0,0)))]"/>
+                <group expand="0" string="Regrouper par">
+                    <filter name="group_device" string="Pointeuse"
+                            context="{'group_by': 'device_id'}"/>
+                    <filter name="group_state" string="Résultat"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_clock" string="État de l'horloge"
+                            context="{'group_by': 'clock_status'}"/>
+                    <filter name="group_date" string="Date"
+                            context="{'group_by': 'sync_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ================= ACTION ================= -->
+    <record id="action_attendance_sync_log" model="ir.actions.act_window">
+        <field name="name">Journal de synchronisation</field>
+        <field name="res_model">attendance.device.sync.log</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_attendance_sync_log_search"/>
+        <field name="context">{'search_default_group_device': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aucune synchronisation enregistrée</p>
+            <p>
+                Ce journal conserve la preuve documentée de chaque cycle de
+                synchronisation : pointages lus, écarts détectés par l'auto-contrôle,
+                badges non rattachés et vérification de l'horloge des pointeuses.
+            </p>
+        </field>
+    </record>
+
+    <!-- ================= MENU ================= -->
+    <menuitem id="menu_attendance_sync_log"
+              name="Journal de synchronisation"
+              parent="hr_attendance.menu_hr_attendance_root"
+              action="action_attendance_sync_log"
+              sequence="16"
+              groups="attendance_devices.group_attendance_device_hr,attendance_devices.group_attendance_device_admin,employee.group_employee_hr,base.group_system"/>
+
+</odoo>

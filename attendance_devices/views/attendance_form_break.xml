@@ -63,6 +63,17 @@
                 <field name="is_resolved"
                        string="Résolut"
                        invisible="not has_absence"/>
+                <!-- Traitement de la non-conformité (ISO 9001 §8.7.2) : motif,
+                     commentaire, et autorité ayant décidé du traitement. -->
+                <field name="resolution_type"
+                       invisible="not is_resolved"
+                       required="is_resolved"/>
+                <field name="resolution_comment"
+                       invisible="not is_resolved"
+                       required="is_resolved and resolution_type == 'other'"
+                       placeholder="Décrire le traitement appliqué…"/>
+                <field name="resolved_by" invisible="not is_resolved" readonly="1"/>
+                <field name="resolved_date" invisible="not is_resolved" readonly="1"/>
             </xpath>
 
         </field>
