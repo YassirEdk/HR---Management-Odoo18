@@ -60,19 +60,25 @@ class AttendanceDeviceSyncLog(models.Model):
     )
 
     # ── Volumétrie lue ───────────────────────────────────────────────────────
+    # Ces compteurs sont des INSTANTANÉS de l'état de la pointeuse au moment du
+    # sync, pas des incréments: deux syncs de la même journée relisent les mêmes
+    # pointages. Les sommer par groupe les compterait plusieurs fois -> max.
     records_read = fields.Integer(
         string='Pointages lus',
         help='Nombre de pointages bruts retournés par la pointeuse.',
+        aggregator='max',
     )
     badges_seen = fields.Integer(
         string='Badges du jour',
         help='Nombre de badges distincts ayant pointé sur la journée de shift.',
+        aggregator='max',
     )
     unlinked_badges = fields.Integer(
         string='Badges non rattachés',
         help='Badges ayant pointé sans employé correspondant. Chaque badge non '
              'rattaché est un pointage réel perdu — non-conformité de données '
              'maîtres (ISO 9001 §8.5.2).',
+        aggregator='max',
     )
     unlinked_badge_ids = fields.Char(
         string='Détail badges non rattachés',
@@ -82,10 +88,12 @@ class AttendanceDeviceSyncLog(models.Model):
     audit_ok = fields.Integer(
         string='Badges conformes',
         help='Badges dont les pointages ont bien été créés et traités.',
+        aggregator='max',
     )
     audit_issues = fields.Integer(
         string='Badges en écart',
         help='Badges dont un pointage n’a pas été reflété dans un enregistrement.',
+        aggregator='max',
     )
     audit_detail = fields.Text(
         string='Détail des écarts',
@@ -97,6 +105,8 @@ class AttendanceDeviceSyncLog(models.Model):
         digits=(16, 1),
         help='Écart entre l’horloge de la pointeuse et l’heure de référence du '
              'serveur, au moment de la lecture. Positif = la pointeuse avance.',
+        # Mesure, pas quantité: additionner des dérives n'a aucun sens.
+        aggregator='avg',
     )
     clock_status = fields.Selection(
         selection=[
