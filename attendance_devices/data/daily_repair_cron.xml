@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- ═══════════════════════════════════════════════════════
+         CRON: nightly repair at 00:00 — re-import the last N days of
+         punches from every device and rebuild those days.
+         N = system parameter attendance_devices.daily_repair_days.
+         Runs before "Close Missing Checkouts" (priority 4 < 10) so a
+         real checkout is restored before anything is marked missing.
+    ══════════════════════════════════════════════════════════ -->
+    <record id="cron_daily_repair" model="ir.cron">
+        <field name="name">Attendance: Nightly Repair (re-import + recalcul)</field>
+        <field name="model_id" ref="attendance_devices.model_attendance_device"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_daily_repair()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+        <field name="priority">4</field>
+        <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 00:00:00')"/>
+    </record>
+
+    <record id="param_daily_repair_days" model="ir.config_parameter">
+        <field name="key">attendance_devices.daily_repair_days</field>
+        <field name="value">3</field>
+    </record>
+</odoo>

@@ -12,6 +12,11 @@
                             type="object"
                             string="Synchroniser maintenant"
                             class="btn-primary"/>
+                    <button name="action_rebuild_attendance"
+                            type="object"
+                            string="Recalculer les présences"
+                            groups="attendance_devices.group_attendance_device_admin,base.group_system"
+                            confirm="Recalculer toutes les présences de la fenêtre de récupération à partir des pointages enregistrés ? Les corrections manuelles de ces jours peuvent être écrasées."/>
                 </header>
                 <sheet>
                     <field name="is_device_admin" invisible="1"/>
@@ -23,7 +28,7 @@
                             <field name="ip_address" readonly="not is_device_admin"/>
                             <field name="port" readonly="not is_device_admin"/>
                             <field name="location" readonly="not is_device_admin"/>
-                            <field name="timezone" readonly="not is_device_admin"/>
+                            <field name="timezone" readonly="not is_device_admin" placeholder="Fuseau global"/>
                             <field name="department_type" readonly="not is_device_admin"/>
                             <field name="last_sync" readonly="not is_device_admin"/>
                         </group>
@@ -46,6 +51,7 @@
                     </group>
                     <group string="Paramètres de shift">
                         <field name="night_shift_cutoff" widget="float_time"/>
+                        <field name="sync_window_days"/>
                     </group>
                     <group string="Détection des absences">
                         <field name="absence_lookback_days"/>

@@ -3,6 +3,7 @@ from odoo.exceptions import ValidationError
 from datetime import timedelta, datetime, time
 from zoneinfo import ZoneInfo
 import logging
+from .tz_utils import get_attendance_tz
 
 _logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class HrAttendance(models.Model):
 
     @api.depends('check_in', 'check_out', 'is_absent', 'is_anomalie', 'missing_checkout')
     def _compute_check_inout_display(self):
-        TZ  = ZoneInfo("Africa/Casablanca")
+        TZ  = get_attendance_tz(self.env)
         UTC = ZoneInfo("UTC")
 
         def fmt(dt):
@@ -429,7 +430,7 @@ class HrAttendance(models.Model):
         'employee_id.shift_config_id.break_max_duration',
     )
     def _compute_statuses(self):
-        TZ  = ZoneInfo("Africa/Casablanca")
+        TZ  = get_attendance_tz(self.env)
         UTC = ZoneInfo("UTC")
         now_utc = fields.Datetime.now()
 
@@ -642,7 +643,7 @@ class HrAttendance(models.Model):
         i.e. it is really a forgotten checkout (→ anomalie, case 3)."""
         if not check_in or not config:
             return False
-        TZ  = ZoneInfo("Africa/Casablanca")
+        TZ  = get_attendance_tz(self.env)
         UTC = ZoneInfo("UTC")
         ci_local = check_in.replace(tzinfo=UTC).astimezone(TZ)
         ci_min   = ci_local.hour * 60 + ci_local.minute
@@ -825,11 +826,16 @@ class HrAttendance(models.Model):
         from datetime import datetime as dt
 
         now_utc   = fields.Datetime.now()
-        TZ        = ZoneInfo("Africa/Casablanca")
+        TZ        = get_attendance_tz(self.env)
         UTC       = ZoneInfo("UTC")
         now_local = now_utc.replace(tzinfo=UTC).astimezone(TZ)
 
         _logger.info("[AUTO-CLOSE] Running at %s (local: %s)", now_utc, now_local)
+
+        # First close every open record that has stored device punches with the
+        # REAL checkout (last OUT punch). Only records with no usable punch fall
+        # through to the missing-checkout / anomaly logic below.
+        self.env['attendance.device']._finalize_open_records()
 
         cr = self.env.cr
 
@@ -954,7 +960,7 @@ class HrAttendance(models.Model):
         import datetime as _datetime
 
         now_utc   = fields.Datetime.now()
-        TZ        = _ZI("Africa/Casablanca")
+        TZ        = get_attendance_tz(self.env)
         UTC       = _ZI("UTC")
         now_local = now_utc.replace(tzinfo=UTC).astimezone(TZ)
 
@@ -1030,7 +1036,7 @@ class HrAttendance(models.Model):
         (now_utc) but aren't triggered by an @api.depends, so they only refresh
         when a record is otherwise touched. Recompute today's real records so
         those statuses appear as soon as the grace elapses."""
-        TZ  = ZoneInfo("Africa/Casablanca")
+        TZ  = get_attendance_tz(self.env)
         UTC = ZoneInfo("UTC")
         today = datetime.now(TZ).date()
         day_start = datetime.combine(today, time(0, 0, 0), tzinfo=TZ).astimezone(UTC).replace(tzinfo=None)

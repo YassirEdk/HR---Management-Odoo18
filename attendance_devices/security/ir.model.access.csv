@@ -16,3 +16,7 @@ access_attendance_sync_log_hr,attendance.device.sync.log hr,model_attendance_dev
 access_attendance_sync_log_emp_hr,attendance.device.sync.log emp hr,model_attendance_device_sync_log,employee.group_employee_hr,1,0,0,0
 access_attendance_sync_log_device_admin,attendance.device.sync.log device admin,model_attendance_device_sync_log,attendance_devices.group_attendance_device_admin,1,0,0,0
 access_attendance_sync_log_system,attendance.device.sync.log system,model_attendance_device_sync_log,base.group_system,1,1,1,1
+access_attendance_device_punch_hr,attendance.device.punch hr,model_attendance_device_punch,attendance_devices.group_attendance_device_hr,1,0,0,0
+access_attendance_device_punch_emp_hr,attendance.device.punch emp hr,model_attendance_device_punch,employee.group_employee_hr,1,0,0,0
+access_attendance_device_punch_admin,attendance.device.punch admin,model_attendance_device_punch,attendance_devices.group_attendance_device_admin,1,0,0,0
+access_attendance_device_punch_system,attendance.device.punch system,model_attendance_device_punch,base.group_system,1,1,1,1

@@ -1,7 +1,7 @@
 {
     'name': 'Attendance Devices',
     'authors': 'Med Africa Logistics',
-    'version': '1.0',
+    'version': '1.1',
     'category': 'Human Resources',
     'summary': 'Manage attendance devices',
     'depends': ['hr', 'base', 'hr_attendance', 'employee'],
@@ -11,6 +11,8 @@
         "data/attendance_status_data.xml",
         "views/attendance_device_views.xml",
         "views/attendance_sync_log_views.xml",
+        "views/attendance_punch_views.xml",
+        "views/res_config_settings_views.xml",
         "data/attendance_device_cron.xml",
         "views/filter_attendance.xml",
         "views/filter_attendance_dept.xml",
@@ -20,6 +22,7 @@
         "data/Shift_data.xml",
         "views/attendance_overview_wizard_views.xml",
         "data/missing_checkout_cron.xml",
+        "data/daily_repair_cron.xml",
         "data/clear_invalid_breaks_action.xml",
 
     ],

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_attendance_device_punch_list" model="ir.ui.view">
+        <field name="name">attendance.device.punch.list</field>
+        <field name="model">attendance.device.punch</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="timestamp"/>
+                <field name="employee_id"/>
+                <field name="badge_id"/>
+                <field name="device_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_attendance_device_punch_search" model="ir.ui.view">
+        <field name="name">attendance.device.punch.search</field>
+        <field name="model">attendance.device.punch</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <field name="badge_id"/>
+                <field name="device_id"/>
+                <filter name="unlinked" string="Badge non rattaché" domain="[('employee_id', '=', False)]"/>
+                <filter name="today" string="Aujourd'hui" domain="[('timestamp', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Regrouper par">
+                    <filter name="group_employee" string="Employé" context="{'group_by': 'employee_id'}"/>
+                    <filter name="group_device" string="Pointeuse" context="{'group_by': 'device_id'}"/>
+                    <filter name="group_day" string="Jour" context="{'group_by': 'timestamp:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_attendance_device_punch" model="ir.actions.act_window">
+        <field name="name">Pointages bruts</field>
+        <field name="res_model">attendance.device.punch</field>
+        <field name="view_mode">list</field>
+        <field name="context">{'search_default_today': 1}</field>
+    </record>
+
+    <menuitem id="menu_attendance_device_punch"
+              name="Pointages bruts"
+              parent="hr_attendance.menu_hr_attendance_root"
+              action="action_attendance_device_punch"
+              sequence="16"
+              groups="attendance_devices.group_attendance_device_hr,attendance_devices.group_attendance_device_admin,employee.group_employee_hr,base.group_system"/>
+</odoo>
