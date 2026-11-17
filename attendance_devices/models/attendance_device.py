@@ -1406,6 +1406,28 @@ class AttendanceDevice(models.Model):
         _logger.info("[ABSENT] Inserted %s record(s).", len(inserts))
 
 
+    def _sync_outcome_line(self):
+        """One result line for the multi-device wizards, built from the journal
+        entry the sync just wrote. A device that could not be read does NOT
+        raise (absences are still generated), so the absence of an exception
+        is not a success."""
+        self.ensure_one()
+        log = self.env['attendance.device.sync.log'].sudo().search(
+            [('device_id', '=', self.id)], order='id desc', limit=1)
+        if not log or log.state == 'failed':
+            reason = (log.error_message if log else '') or "lecture impossible"
+            return f"❌ {self.name} — ÉCHEC : {reason}"
+        if log.state == 'partial':
+            details = []
+            if log.clock_status == 'drift':
+                details.append(f"dérive horloge {log.clock_drift_seconds:.0f}s")
+            if log.unlinked_badges:
+                details.append(f"{log.unlinked_badges} badge(s) non rattaché(s)")
+            if log.audit_issues:
+                details.append(f"{log.audit_issues} écart(s) d’auto-contrôle")
+            return f"⚠️ {self.name} — synchronisé avec avertissements : {', '.join(details)}"
+        return f"✅ {self.name} — synchronisé ({log.records_read} pointage(s) lus)"
+
     # ---------------------------------------------------------
     # BUTTON: Manual sync (single device)
     # ---------------------------------------------------------
@@ -1460,7 +1482,7 @@ class AttendanceDevice(models.Model):
                         device._sync_device_attendance(
                             cron=True, trigger='manual',
                             read=prefetched.get(device.id))
-                    result.append(f"✅ {device.name} — synced")
+                    result.append(device._sync_outcome_line())
                 except Exception as e:
                     result.append(f"❌ {device.name} — sync ERROR: {e}")
                     _logger.exception("[SYNC ALL] Failed for %s", device.name)
@@ -1501,7 +1523,7 @@ class AttendanceDevice(models.Model):
                         device._sync_device_attendance(
                             cron=True, trigger='manual',
                             read=prefetched.get(device.id))
-                    result.append(f"✅ {device.name} — synchronisé")
+                    result.append(device._sync_outcome_line())
                 except Exception as e:
                     result.append(f"❌ {device.name} — ERREUR : {e}")
                     _logger.exception("[SYNC SELECTED] Failed for %s", device.name)
