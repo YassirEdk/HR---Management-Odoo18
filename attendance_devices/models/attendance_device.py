@@ -274,6 +274,15 @@ class AttendanceDevice(models.Model):
         help='État de l’instrument. Une pointeuse hors service n’est plus '
              'synchronisée, mais les absences continuent d’être générées.',
     )
+    auto_out_of_service = fields.Boolean(
+        string='Hors service automatique',
+        readonly=True,
+        copy=False,
+        help='Cochée quand la pointeuse a été passée Hors service automatiquement '
+             'suite à un échec de lecture. Elle continue alors d’être interrogée '
+             'à chaque synchronisation et repasse En service dès qu’elle répond. '
+             'Une mise Hors service manuelle n’est jamais levée automatiquement.',
+    )
     clock_drift_tolerance = fields.Integer(
         string='Tolérance de dérive (s)',
         default=60,
@@ -522,6 +531,37 @@ class AttendanceDevice(models.Model):
             'error_message':       read.get('error') or '',
         })
 
+    @api.model
+    def _syncable_domain(self):
+        """Devices read by the automatic / "sync all" cycles: every device not
+        Hors service, plus those switched Hors service automatically (so they
+        come back En service by themselves once they answer again)."""
+        return ['|', ('device_state', '!=', 'out'), ('auto_out_of_service', '=', True)]
+
+    def _update_auto_state(self, read_ok, result=None):
+        """Follow the device's reachability: a failed read switches an
+        En service device to Hors service; the next successful read restores
+        it. Manual states (maintenance, manual Hors service) are left alone."""
+        self.ensure_one()
+        if not read_ok and self.device_state == 'in_service':
+            self.with_context(auto_device_state=True).write(
+                {'device_state': 'out', 'auto_out_of_service': True})
+            _logger.warning("[SYNC] %s unreachable — switched to Hors service.", self.name)
+            if result is not None:
+                result.append("🔴 Pointeuse injoignable — passée Hors service automatiquement.")
+        elif read_ok and self.auto_out_of_service:
+            self.with_context(auto_device_state=True).write(
+                {'device_state': 'in_service', 'auto_out_of_service': False})
+            _logger.info("[SYNC] %s reachable again — back En service.", self.name)
+            if result is not None:
+                result.append("🟢 Pointeuse de nouveau joignable — repassée En service.")
+
+    def write(self, vals):
+        # A state chosen by hand is a manual decision: never undo it automatically.
+        if 'device_state' in vals and not self.env.context.get('auto_device_state'):
+            vals = dict(vals, auto_out_of_service=False)
+        return super().write(vals)
+
     # ---------------------------------------------------------
     # CORE SYNC LOGIC
     # ---------------------------------------------------------
@@ -563,6 +603,7 @@ class AttendanceDevice(models.Model):
         records = read.get('records')
 
         self._record_clock_check(read)
+        self._update_auto_state(records is not None, result)
         if self.clock_status == 'drift':
             result.append(
                 f"⏰ Horloge hors tolérance : dérive de {self.last_clock_drift:.0f}s "
@@ -1020,7 +1061,7 @@ class AttendanceDevice(models.Model):
         # Wait for a running sync to finish instead of skipping the night.
         cr.execute("SELECT pg_advisory_lock(%s)", (SYNC_LOCK_KEY,))
         try:
-            devices = self.search([('device_state', '!=', 'out')])
+            devices = self.search(self._syncable_domain())
             reads = self._parallel_read_devices(devices)
             now_utc = fields.Datetime.now()
             for d in devices:
@@ -1471,7 +1512,7 @@ class AttendanceDevice(models.Model):
             # A device declared out of service is not read (its clock is not a
             # valid measuring reference). Absences keep being generated for its
             # department by cron_generate_absences.
-            devices = self.search([('device_state', '!=', 'out')])
+            devices = self.search(self._syncable_domain())
             result  = []
             # Read every device in parallel (network I/O), then process the
             # results serially with the same per-device logic as before.
@@ -1542,7 +1583,7 @@ class AttendanceDevice(models.Model):
             _logger.info("[CRON] Sync already running — skipping this cycle")
             return
         try:
-            devices = self.search([('device_state', '!=', 'out')])
+            devices = self.search(self._syncable_domain())
             # Read every device in parallel (network I/O) before processing, so
             # the 5 device reads overlap instead of running back-to-back.
             prefetched = self._parallel_read_devices(devices)

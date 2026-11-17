@@ -39,6 +39,7 @@
                             <field name="device_model" readonly="not is_device_admin"/>
                             <field name="responsible_id"/>
                             <field name="device_state" readonly="not is_device_admin"/>
+                            <field name="auto_out_of_service" invisible="not auto_out_of_service"/>
                             <field name="clock_drift_tolerance" readonly="not is_device_admin"/>
                             <field name="clock_status"
                                    decoration-danger="clock_status == 'drift'"
@@ -99,7 +100,10 @@
                        decoration-danger="clock_status == 'drift'"
                        decoration-success="clock_status == 'ok'"
                        decoration-muted="clock_status == 'unknown'"/>
-                <field name="device_state"/>
+                <field name="device_state" widget="badge"
+                       decoration-danger="device_state == 'out'"
+                       decoration-warning="device_state == 'maintenance'"
+                       decoration-success="device_state == 'in_service'"/>
             </list>
         </field>
     </record>

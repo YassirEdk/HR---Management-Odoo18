@@ -1,7 +1,7 @@
 {
     'name': 'Attendance Devices',
     'authors': 'Med Africa Logistics',
-    'version': '1.1',
+    'version': '1.2',
     'category': 'Human Resources',
     'summary': 'Manage attendance devices',
     'depends': ['hr', 'base', 'hr_attendance', 'employee'],
